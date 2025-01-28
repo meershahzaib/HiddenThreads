@@ -5,8 +5,16 @@ import { db, ref, push, onValue } from "../firebase";
 const Chat = () => {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
+  const [userId, setUserId] = useState("");
 
   useEffect(() => {
+    let storedUserId = localStorage.getItem("chatUserId");
+    if (!storedUserId) {
+      storedUserId = Math.random().toString(36).substr(2, 9);
+      localStorage.setItem("chatUserId", storedUserId);
+    }
+    setUserId(storedUserId);
+
     const messagesRef = ref(db, "messages");
     onValue(messagesRef, (snapshot) => {
       const data = snapshot.val();
@@ -22,15 +30,15 @@ const Chat = () => {
       push(ref(db, "messages"), {
         text: newMessage,
         timestamp: Date.now(),
-        sender: "me", // Identifies the sender
+        sender: userId, 
       });
       setNewMessage("");
     }
   };
 
   return (
-    <div className="pt-16 px-2 h-screen flex flex-col items-center bg-gray-100">
-      <div className="w-full max-w-lg bg-white shadow-lg rounded-lg flex flex-col h-[80vh] overflow-hidden">
+    <div className="pt-16 px-2 h-screen flex flex-col items-center bg-gray-700">
+      <div className="w-full max-w-lg bg-gray-700 shadow-lg rounded-lg flex flex-col h-[70vh] overflow-hidden">
         <div className="p-4 bg-gray-800 text-white text-center font-semibold">
           Anonymous Thread
         </div>
@@ -42,16 +50,16 @@ const Chat = () => {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
-              className={`mb-2 flex ${message.sender === "me" ? "justify-end" : "justify-start"}`}
+              className={`mb-2 flex ${message.sender === userId ? "justify-end" : "justify-start"}`}
             >
-              <div className={`max-w-[70%] p-3 rounded-lg text-sm ${message.sender === "me" ? "bg-blue-500 text-white" : "bg-gray-300 text-black"}`}>
+              <div className={`max-w-[70%] p-3 rounded-lg text-sm ${message.sender === userId ? "bg-blue-500 text-white" : "bg-gray-300 text-black"}`}>
                 {message.text}
               </div>
             </motion.div>
           ))}
         </div>
 
-        <form onSubmit={sendMessage} className="p-2 border-t flex items-center bg-white">
+        <form onSubmit={sendMessage} className="p-2 border-t flex items-center bg-gray-700">
           <input
             type="text"
             value={newMessage}
