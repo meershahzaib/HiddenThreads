@@ -37,9 +37,9 @@ const Chat = () => {
   };
 
   return (
-    <div className="pt-16 px-2 h-screen flex flex-col items-center bg-gray-700">
-      <div className="w-full max-w-lg bg-gray-700 shadow-lg rounded-lg flex flex-col h-[70vh] overflow-hidden">
-        <div className="p-4 bg-gray-800 text-white text-center font-semibold">
+    <div className="pt-16 px-2 h-screen flex flex-col items-center bg-[#1e2938]">
+      <div className="w-full max-w-lg bg-[#1e2938] shadow-lg rounded-2xl border border-gray-500 flex flex-col h-[73vh] overflow-hidden">
+        <div className="p-4 bg-gray-800 text-white text-center font-semibold text-lg">
           Anonymous Thread
         </div>
         
@@ -59,13 +59,13 @@ const Chat = () => {
           ))}
         </div>
 
-        <form onSubmit={sendMessage} className="p-2 border-t flex items-center bg-gray-700">
+        <form onSubmit={sendMessage} className="p-2 border-t flex items-center bg-[#1e2938] border-gray-500">
           <input
             type="text"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             placeholder="Type your message..."
-            className="flex-grow p-2 rounded-lg border border-gray-300 focus:outline-none"
+            className="flex-grow p-2 rounded-lg border border-gray-500 focus:outline-none bg-gray-700 text-white"
           />
           <button type="submit" className="ml-2 bg-blue-500 text-white px-4 py-2 rounded-lg">
             Send
