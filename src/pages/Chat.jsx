@@ -29,43 +29,39 @@ const Chat = () => {
   };
 
   return (
-    <div className="pt-24 px-4 md:px-8 h-screen">
-      <div className="max-w-4xl mx-auto glass h-[calc(100vh-120px)]">
-        <div className="flex flex-col h-full">
-          <div className="p-4 border-b border-gray-700/30">
-            <h1 className="text-xl font-medium">Anonymous Thread</h1>
-          </div>
-          
-          <div className="flex-grow p-4 overflow-y-auto">
-            {messages.map((message, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={`mb-4 flex ${message.sender === "me" ? "justify-end" : "justify-start"}`}
-              >
-                <div className={`max-w-[70%] p-3 rounded-lg ${message.sender === "me" ? "bg-primary/20" : "bg-gray-700/20"}`}>
-                  {message.text}
-                </div>
-              </motion.div>
-            ))}
-          </div>
-
-          <form onSubmit={sendMessage} className="p-4 border-t border-gray-700/30">
-            <div className="flex space-x-4">
-              <input
-                type="text"
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                placeholder="Type your message..."
-                className="flex-grow p-2 rounded-lg bg-dark-lighter border border-gray-700/30 focus:outline-none focus:border-primary"
-              />
-              <button type="submit" className="button-primary">
-                Send
-              </button>
-            </div>
-          </form>
+    <div className="pt-16 px-2 h-screen flex flex-col items-center">
+      <div className="w-full max-w-lg bg-white shadow-lg rounded-lg flex flex-col h-[90vh] overflow-hidden">
+        <div className="p-4 bg-gray-800 text-white text-center font-semibold">
+          Anonymous Thread
         </div>
+        
+        <div className="flex-grow p-2 overflow-y-auto">
+          {messages.map((message, index) => (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`mb-2 flex ${message.sender === "me" ? "justify-end" : "justify-start"}`}
+            >
+              <div className={`max-w-[80%] p-2 rounded-lg text-sm ${message.sender === "me" ? "bg-blue-500 text-white" : "bg-gray-200 text-black"}`}>
+                {message.text}
+              </div>
+            </motion.div>
+          ))}
+        </div>
+
+        <form onSubmit={sendMessage} className="p-2 border-t flex items-center bg-gray-100">
+          <input
+            type="text"
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            placeholder="Type your message..."
+            className="flex-grow p-2 rounded-lg border border-gray-300 focus:outline-none"
+          />
+          <button type="submit" className="ml-2 bg-blue-500 text-white px-4 py-2 rounded-lg">
+            Send
+          </button>
+        </form>
       </div>
     </div>
   );
