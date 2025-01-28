@@ -1,0 +1,30 @@
+@import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-dark text-gray-100 min-h-screen font-comfortaa;
+  background: linear-gradient(to bottom right, #0F172A, #1E293B);
+}
+
+.glass {
+  @apply bg-dark-lighter bg-opacity-30 backdrop-blur-lg border border-gray-700/30 rounded-xl;
+}
+
+.button-primary {
+  @apply px-6 py-3 bg-primary hover:bg-primary/90 rounded-lg font-medium transition-all duration-200;
+}
+
+.dropdown {
+  @apply absolute right-0 mt-2 w-48 glass py-2 z-50;
+}
+
+.dropdown-item {
+  @apply px-4 py-2 text-sm hover:bg-primary/10 cursor-pointer transition-colors;
+}
