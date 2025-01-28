@@ -29,28 +29,29 @@ const Chat = () => {
   };
 
   return (
-    <div className="pt-16 px-2 h-screen flex flex-col items-center">
-      <div className="w-full max-w-lg bg-white shadow-lg rounded-lg flex flex-col h-[90vh] overflow-hidden">
+    <div className="pt-16 px-2 h-screen flex flex-col items-center bg-gray-100">
+      <div className="w-full max-w-lg bg-white shadow-lg rounded-lg flex flex-col h-[80vh] overflow-hidden">
         <div className="p-4 bg-gray-800 text-white text-center font-semibold">
           Anonymous Thread
         </div>
         
-        <div className="flex-grow p-2 overflow-y-auto">
+        <div className="flex-grow p-2 overflow-y-auto custom-scrollbar">
           {messages.map((message, index) => (
             <motion.div
               key={index}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
               className={`mb-2 flex ${message.sender === "me" ? "justify-end" : "justify-start"}`}
             >
-              <div className={`max-w-[80%] p-2 rounded-lg text-sm ${message.sender === "me" ? "bg-blue-500 text-white" : "bg-gray-200 text-black"}`}>
+              <div className={`max-w-[70%] p-3 rounded-lg text-sm ${message.sender === "me" ? "bg-blue-500 text-white" : "bg-gray-300 text-black"}`}>
                 {message.text}
               </div>
             </motion.div>
           ))}
         </div>
 
-        <form onSubmit={sendMessage} className="p-2 border-t flex items-center bg-gray-100">
+        <form onSubmit={sendMessage} className="p-2 border-t flex items-center bg-white">
           <input
             type="text"
             value={newMessage}
