@@ -15,7 +15,29 @@ const Chat = () => {
   const [replyTo, setReplyTo] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [swipeState, setSwipeState] = useState({ id: null, delta: 0 });
+  
   const channelRef = useRef(null);
+  const messagesEndRef = useRef(null);
+  const scrollAreaRef = useRef(null);
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+
+  const scrollToBottom = useCallback(() => {
+    if (shouldAutoScroll && messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [shouldAutoScroll]);
+
+  const handleScroll = useCallback(() => {
+    if (scrollAreaRef.current) {
+      const { scrollHeight, scrollTop, clientHeight } = scrollAreaRef.current;
+      const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+      setShouldAutoScroll(isNearBottom);
+    }
+  }, []);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, scrollToBottom]);
 
   const fetchMessages = async () => {
     const { data, error } = await supabase
@@ -35,10 +57,8 @@ const Chat = () => {
     }
     setUserId(storedUserId);
 
-    // Initialize channel
     channelRef.current = supabase.channel('messages');
     
-    // Set up channel subscription
     channelRef.current
       .on('postgres_changes',
         {
@@ -67,7 +87,6 @@ const Chat = () => {
         }
       });
 
-    // Cleanup function
     return () => {
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
@@ -140,6 +159,7 @@ const Chat = () => {
       setFile(null);
       setFilePreview(null);
       setReplyTo(null);
+      setShouldAutoScroll(true);
     } catch (error) {
       alert("Error sending message. Please try again.");
       console.error("Error:", error);
@@ -246,11 +266,28 @@ const Chat = () => {
           Anonymous Thread
         </div>
 
-        <div className="flex-grow p-4 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
+        <div 
+          ref={scrollAreaRef}
+          onScroll={handleScroll}
+          className="flex-grow p-4 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent"
+        >
           {messages.map((message) => (
             <MessageComponent key={message.id} message={message} />
           ))}
+          <div ref={messagesEndRef} />
         </div>
+
+        {!shouldAutoScroll && messages.length > 0 && (
+          <button
+            onClick={() => {
+              setShouldAutoScroll(true);
+              scrollToBottom();
+            }}
+            className="absolute bottom-24 right-8 bg-blue-500 hover:bg-blue-600 text-white rounded-full p-2 shadow-lg"
+          >
+            ↓
+          </button>
+        )}
 
         {replyTo && (
           <div className="px-4 py-2 bg-[#2D3748] text-gray-300 text-xs border-t border-gray-600 flex items-center justify-between">
