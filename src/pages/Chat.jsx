@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { FaPaperclip, FaPaperPlane, FaReply } from "react-icons/fa";
+import { FaPaperclip, FaPaperPlane } from "react-icons/fa";
 import { createClient } from '@supabase/supabase-js';
+import { useSwipeable } from 'react-swipeable';
 
 const supabase = createClient('https://tttlokbnvaaohyeuiznx.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR0dGxva2JudmFhb2h5ZXVpem54Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzgyMDc2MjYsImV4cCI6MjA1Mzc4MzYyNn0.h3jEFZe22ScG_oWOif4clBKajSbEM21qu8H-EhN5bHI');
 
@@ -161,6 +162,22 @@ const Chat = () => {
     }
   };
 
+  const formatTimestamp = (timestamp) => {
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const swipeHandlers = useSwipeable({
+    onSwiped: (eventData) => {
+      const messageElement = eventData.event.target.closest('.message-container');
+      if (messageElement) {
+        setReplyTo(messageElement.dataset.id);
+        setTimeout(() => setReplyTo(null), 2000);
+      }
+    },
+    trackMouse: true
+  });
+
   const renderFilePreview = (message) => {
     if (!message.file) return null;
 
@@ -175,12 +192,6 @@ const Chat = () => {
               style={{ maxHeight: '120px' }}
             />
           </a>
-          <button
-            className="absolute top-1 right-1 z-10 text-white/80 hover:text-white bg-black/30 p-1 rounded-full backdrop-blur-sm"
-            onClick={() => setReplyTo(message.id)}
-          >
-            <FaReply size={12} />
-          </button>
         </div>
       );
     } else if (message.file.type === 'application/pdf') {
@@ -221,10 +232,16 @@ const Chat = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
               className={`mb-4 flex ${message.sender === userId ? "justify-end" : "justify-start"}`}
+              {...swipeHandlers}
             >
-              <div className="max-w-[80%] group">
+              <div 
+                className="max-w-[80%] group relative message-container"
+                data-id={message.id}
+              >
+                <div className="absolute inset-0 bg-blue-500/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                
                 <div
-                  className={`p-2 rounded-lg ${
+                  className={`p-2 rounded-lg relative ${
                     message.sender === userId
                       ? "bg-gradient-to-br from-blue-500 to-blue-600 text-white"
                       : "bg-gradient-to-br from-gray-700 to-gray-800 text-gray-100"
@@ -239,22 +256,15 @@ const Chat = () => {
                     <div className="flex-grow">
                       {message.replyTo && (
                         <div className={`text-xs mb-1 ${message.sender === userId ? "text-blue-200" : "text-gray-400"}`}>
-                          Replying to: {messages.find(m => m.id === message.replyTo)?.text}
+                          Replying to: {messages.find(m => m.id === message.replyTo)?.text || 'a file'}
                         </div>
                       )}
                       <div className="text-sm">{message.text}</div>
                       {renderFilePreview(message)}
+                      <div className={`text-xs mt-1 ${message.sender === userId ? 'text-blue-200' : 'text-gray-400'}`}>
+                        {formatTimestamp(message.timestamp)}
+                      </div>
                     </div>
-                    {!message.file && (
-                      <button
-                        className={`text-gray-300 hover:text-white opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity mt-0.5 ml-1 ${
-                          message.sender === userId ? "hover:text-blue-200" : "hover:text-gray-200"
-                        }`}
-                        onClick={() => setReplyTo(message.id)}
-                      >
-                        <FaReply size={12} />
-                      </button>
-                    )}
                   </div>
                 </div>
               </div>
@@ -265,7 +275,7 @@ const Chat = () => {
         {replyTo && (
           <div className="px-4 py-2 bg-[#2D3748] text-gray-300 text-xs border-t border-gray-600 flex items-center justify-between">
             <span className="truncate">
-              Replying to: {messages.find(m => m.id === replyTo)?.text}
+              Replying to: {messages.find(m => m.id === replyTo)?.text || 'a file'}
             </span>
             <button
               onClick={() => setReplyTo(null)}
@@ -329,4 +339,4 @@ const Chat = () => {
   );
 };
 
-export default Chat;
+export default Chat;n
