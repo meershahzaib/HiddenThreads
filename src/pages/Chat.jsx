@@ -12,7 +12,7 @@ const Chat = () => {
   const [userId, setUserId] = useState("");
   const [file, setFile] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
-  const [replyTo, setReplyTo] = useState(null);
+  const [replyTo, setReplyTo] = useState(null); 
   const [isUploading, setIsUploading] = useState(false);
   const [swipeState, setSwipeState] = useState({ id: null, delta: 0 });
   

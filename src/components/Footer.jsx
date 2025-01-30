@@ -1,6 +1,16 @@
 import { Link } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
+
 
 function Footer() {
+
+  const location = useLocation();
+
+  // Hide footer on Chat Page
+  if (location.pathname === "/chat") {
+    return null;
+  }
+
   return (
     <footer className="py-8 px-4 md:px-8 bg-dark-lighter">
       <div className="max-w-6xl mx-auto">
