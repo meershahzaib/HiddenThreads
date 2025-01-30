@@ -1,10 +1,16 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
 
 function Header() {
   const [isOpen, setIsOpen] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const location = useLocation();
+
+  // Hide Header on Chat Page
+  if (location.pathname === "/chat") {
+    return null;
+  }
 
   return (
     <header className="fixed w-full top-0 z-50">
