@@ -4,17 +4,22 @@ import { FaPaperclip, FaPaperPlane } from "react-icons/fa";
 import { createClient } from '@supabase/supabase-js';
 import { useSwipeable } from 'react-swipeable';
 
-const supabase = createClient('https://tttlokbnvaaohyeuiznx.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR0dGxva2JudmFhb2h5ZXVpem54Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzgyMDc2MjYsImV4cCI6MjA1Mzc4MzYyNn0.h3jEFZe22ScG_oWOif4clBKajSbEM21qu8H-EhN5bHI');
+const supabase = createClient(
+  'https://tttlokbnvaaohyeuiznx.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR0dGxva2JudmFhb2h5ZXVpem54Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzgyMDc2MjYsImV4cCI6MjA1Mzc4MzYyNn0.h3jEFZe22ScG_oWOif4clBKajSbEM21qu8H-EhN5bHI'
+);
 
 const Chat = () => {
   const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] =  useState("");
+  const [newMessage, setNewMessage] = useState("");
   const [userId, setUserId] = useState("");
   const [file, setFile] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
   const [replyTo, setReplyTo] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [swipeState, setSwipeState] = useState({ id: null, delta: 0 });
+  const [isLoading, setIsLoading] = useState(true);
+  const [lastSentMessageId, setLastSentMessageId] = useState(null);
 
   const channelRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -40,13 +45,20 @@ const Chat = () => {
   }, [messages, scrollToBottom]);
 
   const fetchMessages = async () => {
-    const { data, error } = await supabase
-      .from('messages')
-      .select('*')
-      .order('timestamp', { ascending: true });
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .order('timestamp', { ascending: true });
 
-    if (error) console.error('Error fetching messages:', error);
-    else setMessages(data || []);
+      if (error) throw error;
+      setMessages(data || []);
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -57,35 +69,19 @@ const Chat = () => {
     }
     setUserId(storedUserId);
 
-    channelRef.current = supabase.channel('messages');
+    const channel = supabase.channel('realtime-messages')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'messages'
+      }, (payload) => {
+        handleRealtimeUpdate(payload);
+      })
+      .subscribe();
 
-    channelRef.current
-      .on('postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'messages'
-        },
-        payload => {
-          if (payload.new) {
-            setMessages(prevMessages => {
-              const newMessages = [...prevMessages];
-              const messageIndex = newMessages.findIndex(m => m.id === payload.new.id);
-              if (messageIndex >= 0) {
-                newMessages[messageIndex] = payload.new;
-              } else {
-                newMessages.push(payload.new);
-              }
-              return newMessages.sort((a, b) => a.timestamp - b.timestamp);
-            });
-          }
-        }
-      )
-      .subscribe(status => {
-        if (status === 'SUBSCRIBED') {
-          fetchMessages();
-        }
-      });
+    channelRef.current = channel;
+
+    fetchMessages();
 
     return () => {
       if (channelRef.current) {
@@ -93,6 +89,29 @@ const Chat = () => {
       }
     };
   }, []);
+
+  const handleRealtimeUpdate = (payload) => {
+    switch (payload.eventType) {
+      case 'INSERT':
+        setMessages(prev => {
+          const isDuplicate = prev.some(msg => msg.id === payload.new.id);
+          return isDuplicate ? prev : [...prev, payload.new];
+        });
+        break;
+      case 'UPDATE':
+        setMessages(prev => prev.map(msg =>
+          msg.id === payload.new.id ? payload.new : msg
+        ));
+        break;
+      case 'DELETE':
+        setMessages(prev => prev.filter(msg =>
+          msg.id !== payload.old.id
+        ));
+        break;
+      default:
+        break;
+    }
+  };
 
   const handleFileChange = useCallback((e) => {
     const file = e.target.files[0];
@@ -145,15 +164,24 @@ const Chat = () => {
       setIsUploading(true);
       const fileData = file ? await uploadFile(file) : null;
 
-      const { error } = await supabase.from('messages').insert([{
+      const messageToSend = {
         text: newMessage.trim(),
         timestamp: Date.now(),
         sender: userId,
         replyTo: replyTo,
-        file: fileData
-      }]);
+        file: fileData,
+        read_by: []
+      };
+
+      const { data, error } = await supabase.from('messages').insert([messageToSend]).select();
 
       if (error) throw error;
+
+      if (data && data[0]) {
+        // Add the message immediately to local state
+        setMessages(prev => [...prev, data[0]]);
+        setLastSentMessageId(data[0].id);
+      }
 
       setNewMessage("");
       setFile(null);
@@ -174,14 +202,16 @@ const Chat = () => {
 
   const swipeConfig = useMemo(() => ({
     onSwiping: (e, messageId) => {
-      if (Math.abs(e.deltaX) > 20) return;
+      if (Math.abs(e.deltaX) > 50) return;
       setSwipeState({ id: messageId, delta: e.deltaX });
     },
     onSwiped: (e, messageId) => {
-      if (Math.abs(e.deltaX) > 20) setReplyTo(messageId);
+      if (Math.abs(e.deltaX) > 50) setReplyTo(messageId);
       setSwipeState({ id: null, delta: 0 });
     },
-    trackMouse: true
+    trackMouse: true,
+    delta: 10,
+    preventDefaultTouchmoveEvent: true,
   }), []);
 
   const renderFilePreview = useCallback((message) => {
@@ -210,21 +240,56 @@ const Chat = () => {
     );
   }, []);
 
-  useEffect(() => {
-    return () => filePreview && URL.revokeObjectURL(filePreview);
-  }, [filePreview]);
-
-  const MessageComponent = useCallback(({ message }) => {
+  const SafeMessageComponent = ({ message }) => {
     const handlers = useSwipeable({
       onSwiping: (e) => swipeConfig.onSwiping(e, message.id),
       onSwiped: (e) => swipeConfig.onSwiped(e, message.id),
-      trackMouse: swipeConfig.trackMouse
+      trackMouse: swipeConfig.trackMouse,
+      delta: swipeConfig.delta,
+      preventDefaultTouchmoveEvent: swipeConfig.preventDefaultTouchmoveEvent
     });
+
+    const messageRef = useRef();
+    const hasRead = (message.read_by || []).includes(userId);
+
+    const setRefs = useCallback(
+      (node) => {
+        handlers.ref(node);
+        messageRef.current = node;
+      },
+      [handlers.ref]
+    );
+
+    useEffect(() => {
+      const observer = new IntersectionObserver(
+        ([entry]) => {
+          if (entry.isIntersecting) {
+            const currentReaders = Array.isArray(message.read_by) ? message.read_by : [];
+            if (!currentReaders.includes(userId)) {
+              supabase
+                .from('messages')
+                .update({ read_by: [...currentReaders, userId] })
+                .eq('id', message.id)
+                .then(({ error }) => {
+                  if (error) console.error('Error updating read status:', error);
+                });
+            }
+          }
+        },
+        { threshold: 0.1, rootMargin: '0px 0px -50px 0px' }
+      );
+
+      if (messageRef.current) observer.observe(messageRef.current);
+      return () => {
+        if (messageRef.current) observer.unobserve(messageRef.current);
+      };
+    }, [message.read_by, userId, message.id]);
 
     return (
       <div className={`mb-4 flex ${message.sender === userId ? "justify-end" : "justify-start"}`}>
         <motion.div
           {...handlers}
+          ref={setRefs}
           className="max-w-[80%] relative"
           style={{
             x: swipeState.id === message.id ? swipeState.delta : 0,
@@ -245,22 +310,83 @@ const Chat = () => {
           >
             {message.replyTo && (
               <div className={`text-xs mb-1 ${message.sender === userId ? "text-blue-200" : "text-gray-400"}`}>
-                 {messages.find(m => m.id === message.replyTo)?.text || 'file'}
+                {messages.find(m => m.id === message.replyTo)?.text || 'file'}
               </div>
             )}
             <div>{message.text}</div>
             {renderFilePreview(message)}
-            <div className={`text-xs mt-1 ${message.sender === userId ? 'text-blue-200' : 'text-gray-400'}`}>
-              {formatTimestamp(message.timestamp)}
+            <div className="flex items-center justify-end gap-1 mt-1">
+              <span className={`text-xs ${message.sender === userId ? 'text-blue-200' : 'text-gray-400'}`}>
+                {formatTimestamp(message.timestamp)}
+              </span>
+              <div className="flex items-center">
+                {hasRead ? (
+                  <>
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      className="text-black ml-1"
+                    >
+                      <path
+                        d="M20 6L9 17L4 12"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      className="text-black ml-[-6px]"
+                    >
+                      <path
+                        d="M18 12L9 17L6.5 14.5"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </>
+                ) : (
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    className="text-gray-400 ml-1"
+                  >
+                    <path
+                      d="M20 6L9 17L4 12"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                )}
+              </div>
             </div>
           </div>
         </motion.div>
       </div>
     );
-  }, [userId, swipeState, swipeConfig, renderFilePreview, formatTimestamp, messages]);
+  };
 
   return (
-    <div className="h-screen w-full bg-[#172133] flex flex-col">
+    <div 
+      className="fixed inset-0 flex flex-col bg-[#172133] overflow-hidden" 
+      style={{
+        height: '100dvh', 
+        maxHeight: '-webkit-fill-available', 
+        overscrollBehavior: 'none'
+      }}
+    >
       <div className="p-4 bg-[#2D3748] text-white text-center font-semibold text-lg border-b border-gray-600">
         Anonymous Public Thread
       </div>
@@ -268,11 +394,21 @@ const Chat = () => {
       <div
         ref={scrollAreaRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto p-4 scrollbar"
+        className="flex-1 overflow-y-auto p-4 scrollbar touch-auto"
+        style={{
+          WebkitOverflowScrolling: 'touch',
+          overscrollBehavior: 'contain'
+        }}
       >
-        {messages.map((message) => (
-          <MessageComponent key={message.id} message={message} />
-        ))}
+        {isLoading ? (
+          <div className="flex justify-center items-center h-full">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+          </div>
+        ) : (
+          messages.map((message) => (
+            <SafeMessageComponent key={message.id} message={message} />
+          ))
+        )}
         <div ref={messagesEndRef} />
       </div>
 
@@ -291,7 +427,7 @@ const Chat = () => {
       {replyTo && (
         <div className="px-4 py-2 bg-[#2D3748] text-gray-300 text-xs border-t border-gray-600 flex items-center justify-between">
           <span className="truncate">
-             {messages.find(m => m.id === replyTo)?.text || 'file'}
+            {messages.find(m => m.id === replyTo)?.text || 'file'}
           </span>
           <button onClick={() => setReplyTo(null)} className="ml-2 text-gray-400 hover:text-white">
             ✕
@@ -299,7 +435,7 @@ const Chat = () => {
         </div>
       )}
 
-      <form onSubmit={sendMessage} className="p-4 border-t border-gray-600 bg-[#2D3748]">
+      <form onSubmit={sendMessage} className="p-4 border-t border-gray-600 bg-[#2D3748] safe-area-bottom">
         <div className="flex items-center gap-3">
           <label className="cursor-pointer text-gray-400 hover:text-white transition-colors">
             <FaPaperclip size={20} />
@@ -331,6 +467,11 @@ const Chat = () => {
             onChange={(e) => setNewMessage(e.target.value)}
             placeholder="Type your message..."
             className="flex-grow px-4 py-2 rounded-xl border border-gray-600 focus:outline-none focus:border-blue-500 bg-[#1E293B] text-white text-sm transition-colors"
+            style={{ 
+              fontSize: '16px',
+              WebkitUserSelect: 'text',
+              userSelect: 'text'
+            }}
             disabled={isUploading}
           />
 
@@ -345,23 +486,44 @@ const Chat = () => {
       </form>
 
       <style jsx global>{`
-        .scrollbar::-webkit-scrollbar {
-          width: 8px;
-          background-color: transparent;
+        html, body {
+          overscroll-behavior: none;
+          overflow: hidden;
+          position: fixed;
+          width: 100%;
+          height: 100%;
+          touch-action: manipulation;
         }
 
-        .scrollbar::-webkit-scrollbar-thumb {
-          background-color: #4a5568;
-          border-radius: 4px;
-          transition: background-color 0.2s;
+        @supports (-webkit-touch-callout: none) {
+          body {
+            height: -webkit-fill-available;
+          }
         }
 
-        .scrollbar::-webkit-scrollbar-thumb:hover {
-          background-color: #718096;
+        .safe-area {
+          padding-top: env(safe-area-inset-top);
+          padding-bottom: env(safe-area-inset-bottom);
         }
 
-        .scrollbar::-webkit-scrollbar-track {
-          background-color: transparent;
+        .safe-area-bottom {
+          padding-bottom: calc(env(safe-area-inset-bottom) + 1rem);
+        }
+
+        @media (max-width: 640px) {
+          .scrollbar::-webkit-scrollbar {
+            display: none;
+          }
+
+          input, textarea, select, button {
+            font-size: 16px !important;
+            -webkit-text-size-adjust: 100%;
+          }
+        }
+
+        * {
+          -webkit-tap-highlight-color: transparent;
+          -webkit-touch-callout: none;
         }
       `}</style>
     </div>
