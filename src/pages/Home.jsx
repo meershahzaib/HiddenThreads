@@ -61,7 +61,7 @@ function Home() {
                             className="inline-flex items-center px-8 py-4 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-300 shadow-lg hover:shadow-blue-500/30"
                         >
                             <MessageCircle className="w-5 h-5 mr-2" />
-                            Start a Thread
+                            Join public Thread
                         </Link>
                         <Link
                             to="/learn-more"
