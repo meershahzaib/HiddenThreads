@@ -5,8 +5,9 @@ import Footer from '../components/Footer';
 
 function About() {
   return (
-    <div className="pt-24 px-4 md:px-8">
+    <div>
       <Navbar/>
+    <div className="pt-24 px-4 md:px-8">
       <div className="max-w-4xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -32,7 +33,9 @@ function About() {
           </div>
         </motion.div>
       </div>
-      <Footer/>
+    </div>
+    
+    <Footer/>
     </div>
   );
 }
