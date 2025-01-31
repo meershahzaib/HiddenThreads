@@ -8,7 +8,7 @@ const supabase = createClient('https://tttlokbnvaaohyeuiznx.supabase.co', 'eyJhb
 
 const Chat = () => {
   const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState("");
+  const [newMessage, setNewMessage] =  useState("");
   const [userId, setUserId] = useState("");
   const [file, setFile] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
