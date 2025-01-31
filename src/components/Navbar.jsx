@@ -11,7 +11,6 @@ import {
 // Dropdown Menu Data
 const resources = [
     { title: 'Documentation', icon: BookOpen, description: 'Learn how to use our platform', link: '/docs' },
-    { title: 'API Reference', icon: Code, description: 'Integrate with our API', link: '/api' },
     { title: 'Community', icon: Users, description: 'Join our growing community', link: '/community' },
     { title: 'Showcase', icon: Star, description: 'See what others have built', link: '/showcase' },
 ];

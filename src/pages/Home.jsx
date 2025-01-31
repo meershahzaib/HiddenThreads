@@ -160,61 +160,6 @@ function Home() {
                 </div>
             </section>
 
-            {/* Integration Section */}
-            <section className="py-24 px-4 md:px-8 bg-gray-800/20">
-                <div className="max-w-6xl mx-auto">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-                        <motion.div
-                            initial={{ opacity: 0, x: -20 }}
-                            whileInView={{ opacity: 1, x: 0 }}
-                            viewport={{ once: true }}
-                        >
-                            <h2 className="text-4xl font-bold mb-6 text-white">
-                                Seamless Integration with Your Workflow
-                            </h2>
-                            <p className="text-gray-300 mb-8 text-lg">
-                                Connect HiddenThreads with your favorite tools and platforms.
-                                Our API makes integration simple and secure.
-                            </p>
-                            <div className="flex flex-wrap gap-4">
-                                {['REST API', 'WebSocket', 'SDK', 'Webhooks'].map((tech) => (
-                                    <span
-                                        key={tech}
-                                        className="px-4 py-2 bg-blue-500/10 text-blue-400 rounded-full text-sm"
-                                    >
-                                        {tech}
-                                    </span>
-                                ))}
-                            </div>
-                        </motion.div>
-                        <motion.div
-                            initial={{ opacity: 0, x: 20 }}
-                            whileInView={{ opacity: 1, x: 0 }}
-                            viewport={{ once: true }}
-                            className="relative"
-                        >
-                            <div className="aspect-w-16 aspect-h-9 bg-gray-900 rounded-xl overflow-hidden border border-gray-700">
-                                <div className="p-8">
-                                    <pre className="text-sm text-gray-300 font-mono">
-                                        <code>
-                                            {`const client = new HiddenThreads({
-  apiKey: 'your-api-key'
-});
-
-// Create a secure thread
-await client.threads.create({
-  type: 'private',
-  participants: ['user1', 'user2'],
-  encryption: 'end-to-end'
-});`}
-                                        </code>
-                                    </pre>
-                                </div>
-                            </div>
-                        </motion.div>
-                    </div>
-                </div>
-            </section>
 
             {/* Pricing Cards Section */}
             <section className="py-24 px-4 md:px-8">
