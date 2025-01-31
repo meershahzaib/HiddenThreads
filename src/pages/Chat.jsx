@@ -12,10 +12,10 @@ const Chat = () => {
   const [userId, setUserId] = useState("");
   const [file, setFile] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
-  const [replyTo, setReplyTo] = useState(null); 
+  const [replyTo, setReplyTo] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [swipeState, setSwipeState] = useState({ id: null, delta: 0 });
-  
+
   const channelRef = useRef(null);
   const messagesEndRef = useRef(null);
   const scrollAreaRef = useRef(null);
@@ -58,7 +58,7 @@ const Chat = () => {
     setUserId(storedUserId);
 
     channelRef.current = supabase.channel('messages');
-    
+
     channelRef.current
       .on('postgres_changes',
         {
@@ -231,21 +231,21 @@ const Chat = () => {
             overflowX: 'hidden'
           }}
         >
-          <div 
+          <div
             className="p-2 rounded-lg relative bg-gradient-to-br text-sm"
             style={{
-              background: message.sender === userId 
+              background: message.sender === userId
                 ? 'linear-gradient(to bottom right, #3B82F6, #2563EB)'
                 : 'linear-gradient(to bottom right, #374151, #1F2937)',
               color: message.sender === userId ? 'white' : '#F3F4F6',
-              boxShadow: message.sender === userId 
+              boxShadow: message.sender === userId
                 ? '4px 4px 10px rgba(59, 130, 246, 0.2), -2px -2px 10px rgba(255, 255, 255, 0.1)'
                 : '4px 4px 10px rgba(0, 0, 0, 0.2), -2px -2px 10px rgba(255, 255, 255, 0.05)'
             }}
           >
             {message.replyTo && (
               <div className={`text-xs mb-1 ${message.sender === userId ? "text-blue-200" : "text-gray-400"}`}>
-                Replying to: {messages.find(m => m.id === message.replyTo)?.text || 'file'}
+                 {messages.find(m => m.id === message.replyTo)?.text || 'file'}
               </div>
             )}
             <div>{message.text}</div>
@@ -260,91 +260,110 @@ const Chat = () => {
   }, [userId, swipeState, swipeConfig, renderFilePreview, formatTimestamp, messages]);
 
   return (
-    <div className="h-screen flex items-center justify-center bg-[#172133] px-4">
-      <div className="w-full max-w-2xl bg-[#1E293B] shadow-2xl rounded-2xl flex flex-col h-[80vh] overflow-hidden">
-        <div className="p-4 bg-[#2D3748] text-white text-center font-semibold text-lg border-b border-gray-600">
-          Anonymous Thread
-        </div>
+    <div className="h-screen w-full bg-[#172133] flex flex-col">
+      <div className="p-4 bg-[#2D3748] text-white text-center font-semibold text-lg border-b border-gray-600">
+        Anonymous Public Thread
+      </div>
 
-        <div 
-          ref={scrollAreaRef}
-          onScroll={handleScroll}
-          className="flex-grow p-4 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent"
+      <div
+        ref={scrollAreaRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto p-4 scrollbar"
+      >
+        {messages.map((message) => (
+          <MessageComponent key={message.id} message={message} />
+        ))}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {!shouldAutoScroll && messages.length > 0 && (
+        <button
+          onClick={() => {
+            setShouldAutoScroll(true);
+            scrollToBottom();
+          }}
+          className="fixed bottom-24 right-8 bg-blue-500 hover:bg-blue-600 text-white rounded-full p-2 shadow-lg transition-transform hover:scale-105 z-50"
         >
-          {messages.map((message) => (
-            <MessageComponent key={message.id} message={message} />
-          ))}
-          <div ref={messagesEndRef} />
-        </div>
+          ↓
+        </button>
+      )}
 
-        {!shouldAutoScroll && messages.length > 0 && (
-          <button
-            onClick={() => {
-              setShouldAutoScroll(true);
-              scrollToBottom();
-            }}
-            className="absolute bottom-24 right-8 bg-blue-500 hover:bg-blue-600 text-white rounded-full p-2 shadow-lg"
-          >
-            ↓
+      {replyTo && (
+        <div className="px-4 py-2 bg-[#2D3748] text-gray-300 text-xs border-t border-gray-600 flex items-center justify-between">
+          <span className="truncate">
+             {messages.find(m => m.id === replyTo)?.text || 'file'}
+          </span>
+          <button onClick={() => setReplyTo(null)} className="ml-2 text-gray-400 hover:text-white">
+            ✕
           </button>
-        )}
+        </div>
+      )}
 
-        {replyTo && (
-          <div className="px-4 py-2 bg-[#2D3748] text-gray-300 text-xs border-t border-gray-600 flex items-center justify-between">
-            <span className="truncate">
-              Replying to: {messages.find(m => m.id === replyTo)?.text || 'file'}
-            </span>
-            <button onClick={() => setReplyTo(null)} className="ml-2 text-gray-400 hover:text-white">
-              ✕
-            </button>
-          </div>
-        )}
-
-        <form onSubmit={sendMessage} className="p-4 border-t border-gray-600 bg-[#2D3748]">
-          <div className="flex items-center gap-3">
-            <label className="cursor-pointer text-gray-400 hover:text-white transition-colors">
-              <FaPaperclip size={20} />
-              <input
-                type="file"
-                accept="image/*, application/pdf"
-                className="hidden"
-                onChange={handleFileChange}
-                disabled={isUploading}
-              />
-            </label>
-
-            {filePreview && (
-              <div className="relative">
-                <img src={filePreview} alt="Preview" className="w-8 h-8 object-cover rounded-lg border border-gray-600/20" />
-                <button
-                  type="button"
-                  onClick={() => { setFile(null); setFilePreview(null); }}
-                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-xs shadow-lg"
-                >
-                  ✕
-                </button>
-              </div>
-            )}
-
+      <form onSubmit={sendMessage} className="p-4 border-t border-gray-600 bg-[#2D3748]">
+        <div className="flex items-center gap-3">
+          <label className="cursor-pointer text-gray-400 hover:text-white transition-colors">
+            <FaPaperclip size={20} />
             <input
-              type="text"
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              placeholder="Type your message..."
-              className="flex-grow px-4 py-2 rounded-xl border border-gray-600 focus:outline-none focus:border-blue-500 bg-[#1E293B] text-white text-sm transition-colors"
+              type="file"
+              accept="image/*, application/pdf"
+              className="hidden"
+              onChange={handleFileChange}
               disabled={isUploading}
             />
+          </label>
 
-            <button
-              type="submit"
-              className={`${isUploading ? 'bg-gray-600' : 'bg-blue-500 hover:bg-blue-600'} text-white p-2 rounded-xl transition-colors`}
-              disabled={isUploading}
-            >
-              <FaPaperPlane size={20} />
-            </button>
-          </div>
-        </form>
-      </div>
+          {filePreview && (
+            <div className="relative">
+              <img src={filePreview} alt="Preview" className="w-8 h-8 object-cover rounded-lg border border-gray-600/20" />
+              <button
+                type="button"
+                onClick={() => { setFile(null); setFilePreview(null); }}
+                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-xs shadow-lg"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          <input
+            type="text"
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            placeholder="Type your message..."
+            className="flex-grow px-4 py-2 rounded-xl border border-gray-600 focus:outline-none focus:border-blue-500 bg-[#1E293B] text-white text-sm transition-colors"
+            disabled={isUploading}
+          />
+
+          <button
+            type="submit"
+            className={`${isUploading ? 'bg-gray-600' : 'bg-blue-500 hover:bg-blue-600'} text-white p-2 rounded-xl transition-colors`}
+            disabled={isUploading}
+          >
+            <FaPaperPlane size={20} />
+          </button>
+        </div>
+      </form>
+
+      <style jsx global>{`
+        .scrollbar::-webkit-scrollbar {
+          width: 8px;
+          background-color: transparent;
+        }
+
+        .scrollbar::-webkit-scrollbar-thumb {
+          background-color: #4a5568;
+          border-radius: 4px;
+          transition: background-color 0.2s;
+        }
+
+        .scrollbar::-webkit-scrollbar-thumb:hover {
+          background-color: #718096;
+        }
+
+        .scrollbar::-webkit-scrollbar-track {
+          background-color: transparent;
+        }
+      `}</style>
     </div>
   );
 };
