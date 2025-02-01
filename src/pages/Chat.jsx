@@ -1,13 +1,68 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { FaPaperclip, FaPaperPlane } from "react-icons/fa";
-import { createClient } from '@supabase/supabase-js';
-import { useSwipeable } from 'react-swipeable';
+// Import the client from a dedicated file to ensure a singleton instance
+import { supabase } from "../supabaseClient";
+import { useSwipeable } from "react-swipeable";
 
-const supabase = createClient(
-  'https://tttlokbnvaaohyeuiznx.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR0dGxva2JudmFhb2h5ZXVpem54Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzgyMDc2MjYsImV4cCI6MjA1Mzc4MzYyNn0.h3jEFZe22ScG_oWOif4clBKajSbEM21qu8H-EhN5bHI'
-);
+const ReplyPreview = ({ originalMessage, onCancel }) => {
+  // Determine the preview text based on the original message content
+  const previewText =
+    originalMessage?.text ||
+    (originalMessage?.file?.type.startsWith("image/")
+      ? "Image"
+      : "File");
+
+  return (
+    <motion.div
+      className="px-4 py-3 bg-[#1E293B] border-t border-gray-700 flex items-center justify-between reply-preview shadow-lg rounded-t-lg"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 10 }}
+      transition={{ duration: 0.3 }}
+    >
+      <div className="flex flex-col">
+        <div className="text-xs font-medium uppercase tracking-wider text-blue-400 mb-1 flex items-center gap-2">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-4 w-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <polyline points="9 17 4 12 9 7" />
+            <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
+          </svg>
+          Replying to
+        </div>
+        <div className="text-sm text-gray-300 truncate max-w-[80vw]">
+          {previewText}
+        </div>
+      </div>
+      <button
+        onClick={onCancel}
+        className="p-2 hover:bg-gray-700 rounded-full transition-colors"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="h-5 w-5 text-gray-400"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    </motion.div>
+  );
+};
 
 const Chat = () => {
   const [messages, setMessages] = useState([]);
@@ -48,14 +103,13 @@ const Chat = () => {
     setIsLoading(true);
     try {
       const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .order('timestamp', { ascending: true });
-
+        .from("messages")
+        .select("*")
+        .order("timestamp", { ascending: true });
       if (error) throw error;
       setMessages(data || []);
     } catch (error) {
-      console.error('Error fetching messages:', error);
+      console.error("Error fetching messages:", error);
     } finally {
       setIsLoading(false);
     }
@@ -69,18 +123,22 @@ const Chat = () => {
     }
     setUserId(storedUserId);
 
-    const channel = supabase.channel('realtime-messages')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'messages'
-      }, (payload) => {
-        handleRealtimeUpdate(payload);
-      })
+    const channel = supabase
+      .channel("realtime-messages")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "messages",
+        },
+        (payload) => {
+          handleRealtimeUpdate(payload);
+        }
+      )
       .subscribe();
 
     channelRef.current = channel;
-
     fetchMessages();
 
     return () => {
@@ -92,21 +150,21 @@ const Chat = () => {
 
   const handleRealtimeUpdate = (payload) => {
     switch (payload.eventType) {
-      case 'INSERT':
-        setMessages(prev => {
-          const isDuplicate = prev.some(msg => msg.id === payload.new.id);
+      case "INSERT":
+        setMessages((prev) => {
+          const isDuplicate = prev.some((msg) => msg.id === payload.new.id);
           return isDuplicate ? prev : [...prev, payload.new];
         });
         break;
-      case 'UPDATE':
-        setMessages(prev => prev.map(msg =>
-          msg.id === payload.new.id ? payload.new : msg
-        ));
+      case "UPDATE":
+        setMessages((prev) =>
+          prev.map((msg) => (msg.id === payload.new.id ? payload.new : msg))
+        );
         break;
-      case 'DELETE':
-        setMessages(prev => prev.filter(msg =>
-          msg.id !== payload.old.id
-        ));
+      case "DELETE":
+        setMessages((prev) =>
+          prev.filter((msg) => msg.id !== payload.old.id)
+        );
         break;
       default:
         break;
@@ -116,114 +174,128 @@ const Chat = () => {
   const handleFileChange = useCallback((e) => {
     const file = e.target.files[0];
     if (!file) return;
-
     if (file.size > 5 * 1024 * 1024) {
       alert("File size must be 5MB or less");
       return;
     }
-
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf'];
+    const allowedTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/gif",
+      "application/pdf",
+    ];
     if (!allowedTypes.includes(file.type)) {
       alert("Only images (JPEG, PNG, GIF) and PDF files are allowed");
       return;
     }
-
     setFile(file);
-    if (file.type.startsWith('image/')) {
+    if (file.type.startsWith("image/")) {
       setFilePreview(URL.createObjectURL(file));
     } else {
       setFilePreview(null);
     }
   }, []);
 
-  const uploadFile = useCallback(async (file) => {
-    try {
-      const fileName = `${userId}_${Date.now()}_${file.name}`;
-      const { data, error } = await supabase.storage
-        .from('chat-files')
-        .upload(`uploads/${fileName}`, file);
-
-      if (error) throw error;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('chat-files')
-        .getPublicUrl(`uploads/${fileName}`);
-
-      return { url: publicUrl, type: file.type, name: file.name };
-    } catch (error) {
-      console.error("Error uploading file:", error);
-      throw error;
-    }
-  }, [userId]);
-
-  const sendMessage = useCallback(async (e) => {
-    e.preventDefault();
-    if ((!newMessage.trim() && !file) || isUploading) return;
-
-    try {
-      setIsUploading(true);
-      const fileData = file ? await uploadFile(file) : null;
-
-      const messageToSend = {
-        text: newMessage.trim(),
-        timestamp: Date.now(),
-        sender: userId,
-        replyTo: replyTo,
-        file: fileData,
-        read_by: []
-      };
-
-      const { data, error } = await supabase.from('messages').insert([messageToSend]).select();
-
-      if (error) throw error;
-
-      if (data && data[0]) {
-        setMessages(prev => [...prev, data[0]]);
-        setLastSentMessageId(data[0].id);
+  const uploadFile = useCallback(
+    async (file) => {
+      try {
+        const fileName = `${userId}_${Date.now()}_${file.name}`;
+        const { data, error } = await supabase.storage
+          .from("chat-files")
+          .upload(`uploads/${fileName}`, file);
+        if (error) throw error;
+        const {
+          data: { publicUrl },
+        } = supabase.storage
+          .from("chat-files")
+          .getPublicUrl(`uploads/${fileName}`);
+        return { url: publicUrl, type: file.type, name: file.name };
+      } catch (error) {
+        console.error("Error uploading file:", error);
+        throw error;
       }
+    },
+    [userId]
+  );
 
-      setNewMessage("");
-      setFile(null);
-      setFilePreview(null);
-      setReplyTo(null);
-      setShouldAutoScroll(true);
-    } catch (error) {
-      alert("Error sending message. Please try again.");
-      console.error("Error:", error);
-    } finally {
-      setIsUploading(false);
-    }
-  }, [newMessage, file, isUploading, uploadFile, userId, replyTo]);
+  const sendMessage = useCallback(
+    async (e) => {
+      e.preventDefault();
+      if ((!newMessage.trim() && !file) || isUploading) return;
+      try {
+        setIsUploading(true);
+        const fileData = file ? await uploadFile(file) : null;
+        const messageToSend = {
+          text: newMessage.trim(),
+          timestamp: Date.now(),
+          sender: userId,
+          replyTo: replyTo,
+          file: fileData,
+          read_by: [],
+        };
+        const { data, error } = await supabase
+          .from("messages")
+          .insert([messageToSend])
+          .select();
+        if (error) throw error;
+        if (data && data[0]) {
+          setMessages((prev) => [...prev, data[0]]);
+          setLastSentMessageId(data[0].id);
+        }
+        setNewMessage("");
+        setFile(null);
+        setFilePreview(null);
+        setReplyTo(null);
+        setShouldAutoScroll(true);
+      } catch (error) {
+        alert("Error sending message. Please try again.");
+        console.error("Error:", error);
+      } finally {
+        setIsUploading(false);
+      }
+    },
+    [newMessage, file, isUploading, uploadFile, userId, replyTo]
+  );
 
   const formatTimestamp = useCallback((timestamp) => {
-    return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return new Date(timestamp).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   }, []);
 
-  const swipeConfig = useMemo(() => ({
-    onSwiping: (e, messageId) => {
-      if (Math.abs(e.deltaX) > 50) return;
-      setSwipeState({ id: messageId, delta: e.deltaX });
-    },
-    onSwiped: (e, messageId) => {
-      if (Math.abs(e.deltaX) > 50) setReplyTo(messageId);
-      setSwipeState({ id: null, delta: 0 });
-    },
-    trackMouse: true,
-    delta: 10,
-    preventDefaultTouchmoveEvent: true,
-  }), []);
+  const swipeConfig = useMemo(
+    () => ({
+      onSwiping: (e, messageId) => {
+        if (Math.abs(e.deltaX) > 50) return;
+        setSwipeState({ id: messageId, delta: e.deltaX });
+      },
+      onSwiped: (e, messageId) => {
+        if (Math.abs(e.deltaX) > 50) setReplyTo(messageId);
+        setSwipeState({ id: null, delta: 0 });
+      },
+      trackMouse: true,
+      delta: 10,
+      preventDefaultTouchmoveEvent: true,
+    }),
+    []
+  );
 
   const renderFilePreview = useCallback((message) => {
     if (!message.file) return null;
-
-    return message.file.type.startsWith('image/') ? (
+    return message.file.type.startsWith("image/") ? (
       <div className="relative mt-1 max-w-xs">
-        <a href={message.file.url} target="_blank" rel="noopener noreferrer" className="block">
+        <a
+          href={message.file.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block"
+        >
           <img
             src={message.file.url}
             alt="Shared content"
             className="w-full h-auto rounded-sm border border-white/20"
-            style={{ maxHeight: '120px' }}
+            style={{ maxHeight: "120px" }}
           />
         </a>
       </div>
@@ -245,12 +317,10 @@ const Chat = () => {
       onSwiped: (e) => swipeConfig.onSwiped(e, message.id),
       trackMouse: swipeConfig.trackMouse,
       delta: swipeConfig.delta,
-      preventDefaultTouchmoveEvent: swipeConfig.preventDefaultTouchmoveEvent
+      preventDefaultTouchmoveEvent: swipeConfig.preventDefaultTouchmoveEvent,
     });
-
     const messageRef = useRef();
     const hasRead = (message.read_by || []).includes(userId);
-
     const setRefs = useCallback(
       (node) => {
         handlers.ref(node);
@@ -258,64 +328,78 @@ const Chat = () => {
       },
       [handlers.ref]
     );
-
     useEffect(() => {
       const observer = new IntersectionObserver(
         ([entry]) => {
           if (entry.isIntersecting) {
-            const currentReaders = Array.isArray(message.read_by) ? message.read_by : [];
+            const currentReaders = Array.isArray(message.read_by)
+              ? message.read_by
+              : [];
             if (!currentReaders.includes(userId)) {
               supabase
-                .from('messages')
+                .from("messages")
                 .update({ read_by: [...currentReaders, userId] })
-                .eq('id', message.id)
+                .eq("id", message.id)
                 .then(({ error }) => {
-                  if (error) console.error('Error updating read status:', error);
+                  if (error) console.error("Error updating read status:", error);
                 });
             }
           }
         },
-        { threshold: 0.1, rootMargin: '0px 0px -50px 0px' }
+        { threshold: 0.1, rootMargin: "0px 0px -50px 0px" }
       );
-
       if (messageRef.current) observer.observe(messageRef.current);
       return () => {
         if (messageRef.current) observer.unobserve(messageRef.current);
       };
     }, [message.read_by, userId, message.id]);
-
     return (
-      <div className={`mb-4 flex ${message.sender === userId ? "justify-end" : "justify-start"}`}>
+      <div
+        className={`mb-4 flex ${
+          message.sender === userId ? "justify-end" : "justify-start"
+        }`}
+      >
         <motion.div
           {...handlers}
           ref={setRefs}
           className="max-w-[80%] relative"
           style={{
             x: swipeState.id === message.id ? swipeState.delta : 0,
-            overflowX: 'hidden'
+            overflowX: "hidden",
           }}
         >
           <div
             className="p-2 rounded-lg relative bg-gradient-to-br text-sm"
             style={{
-              background: message.sender === userId
-                ? 'linear-gradient(to bottom right, #3B82F6, #2563EB)'
-                : 'linear-gradient(to bottom right, #374151, #1F2937)',
-              color: message.sender === userId ? 'white' : '#F3F4F6',
-              boxShadow: message.sender === userId
-                ? '4px 4px 10px rgba(59, 130, 246, 0.2), -2px -2px 10px rgba(255, 255, 255, 0.1)'
-                : '4px 4px 10px rgba(0, 0, 0, 0.2), -2px -2px 10px rgba(255, 255, 255, 0.05)'
+              background:
+                message.sender === userId
+                  ? "linear-gradient(to bottom right, #3B82F6, #2563EB)"
+                  : "linear-gradient(to bottom right, #374151, #1F2937)",
+              color: message.sender === userId ? "white" : "#F3F4F6",
+              boxShadow:
+                message.sender === userId
+                  ? "4px 4px 10px rgba(59, 130, 246, 0.2), -2px -2px 10px rgba(255, 255, 255, 0.1)"
+                  : "4px 4px 10px rgba(0, 0, 0, 0.2), -2px -2px 10px rgba(255, 255, 255, 0.05)",
             }}
           >
             {message.replyTo && (
-              <div className={`text-xs mb-1 ${message.sender === userId ? "text-blue-200" : "text-gray-400"}`}>
-                {messages.find(m => m.id === message.replyTo)?.text || 'file'}
+              <div
+                className={`text-xs mb-1 ${
+                  message.sender === userId ? "text-blue-200" : "text-gray-400"
+                }`}
+              >
+                {messages.find((m) => m.id === message.replyTo)?.text ||
+                  "file"}
               </div>
             )}
             <div>{message.text}</div>
             {renderFilePreview(message)}
             <div className="flex items-center justify-end gap-1 mt-1">
-              <span className={`text-xs ${message.sender === userId ? 'text-blue-200' : 'text-gray-400'}`}>
+              <span
+                className={`text-xs ${
+                  message.sender === userId ? "text-blue-200" : "text-gray-400"
+                }`}
+              >
                 {formatTimestamp(message.timestamp)}
               </span>
               <div className="flex items-center">
@@ -378,12 +462,12 @@ const Chat = () => {
   };
 
   return (
-    <div 
-      className="fixed inset-0 flex flex-col bg-[#172133] overflow-hidden" 
+    <div
+      className="fixed inset-0 flex flex-col bg-[#172133] overflow-hidden"
       style={{
-        height: '100dvh', 
-        maxHeight: '-webkit-fill-available', 
-        overscrollBehavior: 'none'
+        height: "100dvh",
+        maxHeight: "-webkit-fill-available",
+        overscrollBehavior: "none",
       }}
     >
       <div className="p-4 bg-[#2D3748] text-white text-center font-semibold text-lg border-b border-gray-600">
@@ -395,8 +479,8 @@ const Chat = () => {
         onScroll={handleScroll}
         className="flex-1 overflow-y-auto p-4 scrollbar touch-auto"
         style={{
-          WebkitOverflowScrolling: 'touch',
-          overscrollBehavior: 'contain'
+          WebkitOverflowScrolling: "touch",
+          overscrollBehavior: "contain",
         }}
       >
         {isLoading ? (
@@ -423,60 +507,19 @@ const Chat = () => {
         </button>
       )}
 
-      {replyTo && (
-        <div className="px-4 py-3 bg-[#1E293B] border-t border-gray-700 flex items-start justify-between reply-preview">
-          <div className="flex-1 pr-4">
-            <div className="text-xs font-medium text-blue-400 mb-1 flex items-center gap-2">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-4 w-4"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polyline points="9 17 4 12 9 7" />
-                <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
-              </svg>
-              Replying to
-            </div>
-            <div className="text-sm text-gray-300 truncate">
-              {(() => {
-                const originalMessage = messages.find(m => m.id === replyTo);
-                return originalMessage?.text || (
-                  <span className="italic text-gray-400">
-                    {originalMessage?.file?.type.startsWith('image/') 
-                      ? "Image" 
-                      : "File"}
-                  </span>
-                );
-              })()}
-            </div>
-          </div>
-          <button 
-            onClick={() => setReplyTo(null)}
-            className="p-1 hover:bg-gray-700/50 rounded-full transition-colors"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5 text-gray-400"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        </div>
-      )}
+      <AnimatePresence>
+        {replyTo && (
+          <ReplyPreview
+            originalMessage={messages.find((m) => m.id === replyTo)}
+            onCancel={() => setReplyTo(null)}
+          />
+        )}
+      </AnimatePresence>
 
-      <form onSubmit={sendMessage} className="p-4 border-t border-gray-600 bg-[#2D3748] safe-area-bottom">
+      <form
+        onSubmit={sendMessage}
+        className="p-4 border-t border-gray-600 bg-[#2D3748] safe-area-bottom"
+      >
         <div className="flex items-center gap-3">
           <label className="cursor-pointer text-gray-400 hover:text-white transition-colors">
             <FaPaperclip size={20} />
@@ -491,12 +534,18 @@ const Chat = () => {
 
           {filePreview && (
             <div className="relative">
-              <img src={filePreview} alt="Preview" className="w-8 h-8 object-cover rounded-lg border border-gray-600/20" 
+              <img
+                src={filePreview}
+                alt="Preview"
+                className="w-8 h-8 object-cover rounded-lg border border-gray-600/20"
               />
               <button
                 type="button"
-                onClick={() => { setFile(null); setFilePreview(null); }}
-                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-xs shadow-lg hover:bg-red-600 transition-colors"
+                onClick={() => {
+                  setFile(null);
+                  setFilePreview(null);
+                }}
+                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-xs shadow-lg"
               >
                 ✕
               </button>
@@ -508,11 +557,11 @@ const Chat = () => {
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             placeholder="Type your message..."
-            className="flex-grow px-4 py-2 rounded-xl border border-gray-600 focus:outline-none focus:border-blue-500 bg-[#1E293B] text-white text-sm transition-colors placeholder-gray-400"
-            style={{ 
-              fontSize: '16px',
-              WebkitUserSelect: 'text',
-              userSelect: 'text'
+            className="flex-grow px-4 py-2 rounded-xl border border-gray-600 focus:outline-none focus:border-blue-500 bg-[#1E293B] text-white text-sm transition-colors"
+            style={{
+              fontSize: "16px",
+              WebkitUserSelect: "text",
+              userSelect: "text",
             }}
             disabled={isUploading}
           />
@@ -520,8 +569,8 @@ const Chat = () => {
           <button
             type="submit"
             className={`${
-              isUploading ? 'bg-gray-600' : 'bg-blue-500 hover:bg-blue-600'
-            } text-white p-2 rounded-xl transition-colors flex items-center justify-center`}
+              isUploading ? "bg-gray-600" : "bg-blue-500 hover:bg-blue-600"
+            } text-white p-2 rounded-xl transition-colors`}
             disabled={isUploading}
           >
             <FaPaperPlane size={20} />
@@ -529,7 +578,7 @@ const Chat = () => {
         </div>
       </form>
 
-      <style jsx global>{`
+      <style>{`
         html, body {
           overscroll-behavior: none;
           overflow: hidden;
@@ -538,43 +587,47 @@ const Chat = () => {
           height: 100%;
           touch-action: manipulation;
         }
-
         @supports (-webkit-touch-callout: none) {
           body {
             height: -webkit-fill-available;
           }
         }
-
         .safe-area {
           padding-top: env(safe-area-inset-top);
           padding-bottom: env(safe-area-inset-bottom);
         }
-
         .safe-area-bottom {
           padding-bottom: calc(env(safe-area-inset-bottom) + 1rem);
         }
-
+        .reply-preview {
+          animation: slideIn 0.2s ease-out;
+          background-image: linear-gradient(135deg, #3B82F6, #9333EA);
+          background-origin: border-box;
+          background-clip: padding-box, border-box;
+          border: 2px solid transparent;
+        }
+        @keyframes slideIn {
+          from {
+            transform: translateY(10px);
+            opacity: 0;
+          }
+          to {
+            transform: translateY(0);
+            opacity: 1;
+          }
+        }
         @media (max-width: 640px) {
           .scrollbar::-webkit-scrollbar {
             display: none;
           }
-
           input, textarea, select, button {
             font-size: 16px !important;
             -webkit-text-size-adjust: 100%;
           }
         }
-
         * {
           -webkit-tap-highlight-color: transparent;
           -webkit-touch-callout: none;
-        }
-
-        .line-clamp-2 {
-          display: -webkit-box;
-          -webkit-line-clamp: 2;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
         }
       `}</style>
     </div>
