@@ -178,7 +178,6 @@ const Chat = () => {
       if (error) throw error;
 
       if (data && data[0]) {
-        // Add the message immediately to local state
         setMessages(prev => [...prev, data[0]]);
         setLastSentMessageId(data[0].id);
       }
@@ -425,12 +424,54 @@ const Chat = () => {
       )}
 
       {replyTo && (
-        <div className="px-4 py-2 bg-[#2D3748] text-gray-300 text-xs border-t border-gray-600 flex items-center justify-between">
-          <span className="truncate">
-            {messages.find(m => m.id === replyTo)?.text || 'file'}
-          </span>
-          <button onClick={() => setReplyTo(null)} className="ml-2 text-gray-400 hover:text-white">
-            ✕
+        <div className="px-4 py-3 bg-[#1E293B] border-t border-gray-700 flex items-start justify-between reply-preview">
+          <div className="flex-1 pr-4">
+            <div className="text-xs font-medium text-blue-400 mb-1 flex items-center gap-2">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-4 w-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline points="9 17 4 12 9 7" />
+                <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
+              </svg>
+              Replying to
+            </div>
+            <div className="text-sm text-gray-300 truncate">
+              {(() => {
+                const originalMessage = messages.find(m => m.id === replyTo);
+                return originalMessage?.text || (
+                  <span className="italic text-gray-400">
+                    {originalMessage?.file?.type.startsWith('image/') 
+                      ? "Image" 
+                      : "File"}
+                  </span>
+                );
+              })()}
+            </div>
+          </div>
+          <button 
+            onClick={() => setReplyTo(null)}
+            className="p-1 hover:bg-gray-700/50 rounded-full transition-colors"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5 text-gray-400"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
           </button>
         </div>
       )}
@@ -450,11 +491,12 @@ const Chat = () => {
 
           {filePreview && (
             <div className="relative">
-              <img src={filePreview} alt="Preview" className="w-8 h-8 object-cover rounded-lg border border-gray-600/20" />
+              <img src={filePreview} alt="Preview" className="w-8 h-8 object-cover rounded-lg border border-gray-600/20" 
+              />
               <button
                 type="button"
                 onClick={() => { setFile(null); setFilePreview(null); }}
-                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-xs shadow-lg"
+                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-xs shadow-lg hover:bg-red-600 transition-colors"
               >
                 ✕
               </button>
@@ -466,7 +508,7 @@ const Chat = () => {
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             placeholder="Type your message..."
-            className="flex-grow px-4 py-2 rounded-xl border border-gray-600 focus:outline-none focus:border-blue-500 bg-[#1E293B] text-white text-sm transition-colors"
+            className="flex-grow px-4 py-2 rounded-xl border border-gray-600 focus:outline-none focus:border-blue-500 bg-[#1E293B] text-white text-sm transition-colors placeholder-gray-400"
             style={{ 
               fontSize: '16px',
               WebkitUserSelect: 'text',
@@ -477,7 +519,9 @@ const Chat = () => {
 
           <button
             type="submit"
-            className={`${isUploading ? 'bg-gray-600' : 'bg-blue-500 hover:bg-blue-600'} text-white p-2 rounded-xl transition-colors`}
+            className={`${
+              isUploading ? 'bg-gray-600' : 'bg-blue-500 hover:bg-blue-600'
+            } text-white p-2 rounded-xl transition-colors flex items-center justify-center`}
             disabled={isUploading}
           >
             <FaPaperPlane size={20} />
@@ -524,6 +568,13 @@ const Chat = () => {
         * {
           -webkit-tap-highlight-color: transparent;
           -webkit-touch-callout: none;
+        }
+
+        .line-clamp-2 {
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
         }
       `}</style>
     </div>
