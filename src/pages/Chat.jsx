@@ -5,6 +5,12 @@ import { FaPaperclip, FaPaperPlane, FaUser } from "react-icons/fa";
 import { supabase } from "../supabaseClient";
 import { useSwipeable } from "react-swipeable";
 
+// Helper: Get hidden message IDs from localStorage (or return an empty array)
+const getHiddenMessages = () => {
+  const stored = localStorage.getItem("hiddenMessages");
+  return stored ? JSON.parse(stored) : [];
+};
+
 const ReplyPreview = ({ originalMessage, onCancel }) => {
   // Determine the preview text based on the original message content
   const previewText =
@@ -68,7 +74,7 @@ const Chat = () => {
   // State for messages and chat content
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
-  // Use a username system instead of a temporary id
+  // Use a username system (custom, not Supabase Auth)
   const [username, setUsername] = useState("");
   const [file, setFile] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
@@ -78,8 +84,10 @@ const Chat = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [lastSentMessageId, setLastSentMessageId] = useState(null);
   const [showUsernameModal, setShowUsernameModal] = useState(false);
-  // State for handling deletion via our custom modal
+  // State for handling deletion (i.e. hiding) via our custom modal.
   const [deletionCandidate, setDeletionCandidate] = useState(null);
+  // State to track which messages have been hidden for this user.
+  const [hiddenMessages, setHiddenMessages] = useState(getHiddenMessages());
 
   const channelRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -121,12 +129,12 @@ const Chat = () => {
   };
 
   useEffect(() => {
-    // Check for saved username in localStorage; if not found, prompt the user.
+    // Check for saved username in localStorage; if not, prompt the user.
     const storedUsername = localStorage.getItem("chatUsername");
     if (storedUsername) {
       setUsername(storedUsername);
-      // Set the custom session variable for this connection.
-      supabase.rpc('set_current_user', { username: storedUsername });
+      // Optionally, set the session variable via RPC if needed.
+      // await supabase.rpc("set_current_user", { username: storedUsername });
     } else {
       setShowUsernameModal(true);
     }
@@ -352,12 +360,12 @@ const Chat = () => {
       [handlers.ref]
     );
 
-    // Start a 0.8-second timer on press to trigger the delete option.
+    // Start a 0.8-second timer on press to trigger the delete (hide) option.
     const handleLongPressStart = () => {
       if (message.sender !== username) return;
       longPressTimer.current = setTimeout(() => {
         onLongPressDelete(message);
-      }, 800); // 0.8 seconds long press
+      }, 600); // 0.8 seconds long press
     };
 
     const handleLongPressEnd = () => {
@@ -588,14 +596,14 @@ const Chat = () => {
     );
   };
 
-  // Enhanced Username Modal with updated styling and RPC call to set the session variable.
+  // Enhanced Username Modal with updated styling and RPC call.
+  // (RPC call remains in case you want to use it later for other purposes.)
   const UsernameModal = () => {
     const [tempUsername, setTempUsername] = useState("");
     const handleSubmit = async (e) => {
       e.preventDefault();
       if (tempUsername.trim()) {
         localStorage.setItem("chatUsername", tempUsername.trim());
-        // Call the RPC function to set the session variable for the current connection.
         await supabase.rpc("set_current_user", { username: tempUsername.trim() });
         setUsername(tempUsername.trim());
         setShowUsernameModal(false);
@@ -643,27 +651,14 @@ const Chat = () => {
     );
   };
 
-  // Handle deletion confirmation by calling Supabase to delete the message.
-  const handleConfirmDeletion = async () => {
+  // Handle deletion confirmation by "hiding" the message.
+  // This adds the message's ID to the hiddenMessages state and localStorage.
+  const handleConfirmDeletion = () => {
     if (deletionCandidate) {
-      try {
-        const { error } = await supabase
-          .from("messages")
-          .delete()
-          .eq("id", deletionCandidate.id);
-        if (error) {
-          console.error("Error deleting message:", error);
-        } else {
-          // Remove the message from local state immediately.
-          setMessages((prev) =>
-            prev.filter((msg) => msg.id !== deletionCandidate.id)
-          );
-        }
-      } catch (error) {
-        console.error("Error:", error);
-      } finally {
-        setDeletionCandidate(null);
-      }
+      const newHidden = [...hiddenMessages, deletionCandidate.id];
+      setHiddenMessages(newHidden);
+      localStorage.setItem("hiddenMessages", JSON.stringify(newHidden));
+      setDeletionCandidate(null);
     }
   };
 
@@ -695,18 +690,21 @@ const Chat = () => {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
           </div>
         ) : (
-          messages.map((message) => (
-            <SafeMessageComponent
-              key={message.id}
-              message={message}
-              onLongPressDelete={(msg) => {
-                // Only trigger deletion modal for the current user's message
-                if (msg.sender === username) {
-                  setDeletionCandidate(msg);
-                }
-              }}
-            />
-          ))
+          // Filter out messages whose IDs are in hiddenMessages
+          messages
+            .filter((message) => !hiddenMessages.includes(message.id))
+            .map((message) => (
+              <SafeMessageComponent
+                key={message.id}
+                message={message}
+                onLongPressDelete={(msg) => {
+                  // Only trigger deletion modal for the current user's message
+                  if (msg.sender === username) {
+                    setDeletionCandidate(msg);
+                  }
+                }}
+              />
+            ))
         )}
         <div ref={messagesEndRef} />
       </div>
