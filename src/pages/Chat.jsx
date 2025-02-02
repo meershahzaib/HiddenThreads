@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaPaperclip, FaPaperPlane } from "react-icons/fa";
+import { FaPaperclip, FaPaperPlane, FaUser } from "react-icons/fa";
 // Import the client from a dedicated file to ensure a singleton instance
 import { supabase } from "../supabaseClient";
 import { useSwipeable } from "react-swipeable";
@@ -65,9 +65,11 @@ const ReplyPreview = ({ originalMessage, onCancel }) => {
 };
 
 const Chat = () => {
+  // State for messages and chat content
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
-  const [userId, setUserId] = useState("");
+  // Use a username system instead of a temporary id
+  const [username, setUsername] = useState("");
   const [file, setFile] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
   const [replyTo, setReplyTo] = useState(null);
@@ -75,6 +77,7 @@ const Chat = () => {
   const [swipeState, setSwipeState] = useState({ id: null, delta: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [lastSentMessageId, setLastSentMessageId] = useState(null);
+  const [showUsernameModal, setShowUsernameModal] = useState(false);
 
   const channelRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -116,12 +119,13 @@ const Chat = () => {
   };
 
   useEffect(() => {
-    let storedUserId = localStorage.getItem("chatUserId");
-    if (!storedUserId) {
-      storedUserId = Math.random().toString(36).substr(2, 9);
-      localStorage.setItem("chatUserId", storedUserId);
+    // Check for saved username in localStorage; if not found, prompt the user.
+    const storedUsername = localStorage.getItem("chatUsername");
+    if (storedUsername) {
+      setUsername(storedUsername);
+    } else {
+      setShowUsernameModal(true);
     }
-    setUserId(storedUserId);
 
     const channel = supabase
       .channel("realtime-messages")
@@ -199,7 +203,7 @@ const Chat = () => {
   const uploadFile = useCallback(
     async (file) => {
       try {
-        const fileName = `${userId}_${Date.now()}_${file.name}`;
+        const fileName = `${username}_${Date.now()}_${file.name}`;
         const { data, error } = await supabase.storage
           .from("chat-files")
           .upload(`uploads/${fileName}`, file);
@@ -215,7 +219,7 @@ const Chat = () => {
         throw error;
       }
     },
-    [userId]
+    [username]
   );
 
   const sendMessage = useCallback(
@@ -228,7 +232,7 @@ const Chat = () => {
         const messageToSend = {
           text: newMessage.trim(),
           timestamp: Date.now(),
-          sender: userId,
+          sender: username,
           replyTo: replyTo,
           file: fileData,
           read_by: [],
@@ -254,7 +258,7 @@ const Chat = () => {
         setIsUploading(false);
       }
     },
-    [newMessage, file, isUploading, uploadFile, userId, replyTo]
+    [newMessage, file, isUploading, uploadFile, username, replyTo]
   );
 
   const formatTimestamp = useCallback((timestamp) => {
@@ -311,6 +315,7 @@ const Chat = () => {
     );
   }, []);
 
+  // Updated SafeMessageComponent to display the sender’s username outside the bubble.
   const SafeMessageComponent = ({ message }) => {
     const handlers = useSwipeable({
       onSwiping: (e) => swipeConfig.onSwiping(e, message.id),
@@ -320,7 +325,7 @@ const Chat = () => {
       preventDefaultTouchmoveEvent: swipeConfig.preventDefaultTouchmoveEvent,
     });
     const messageRef = useRef();
-    const hasRead = (message.read_by || []).includes(userId);
+    const hasRead = (message.read_by || []).includes(username);
     const setRefs = useCallback(
       (node) => {
         handlers.ref(node);
@@ -335,13 +340,14 @@ const Chat = () => {
             const currentReaders = Array.isArray(message.read_by)
               ? message.read_by
               : [];
-            if (!currentReaders.includes(userId)) {
+            if (!currentReaders.includes(username)) {
               supabase
                 .from("messages")
-                .update({ read_by: [...currentReaders, userId] })
+                .update({ read_by: [...currentReaders, username] })
                 .eq("id", message.id)
                 .then(({ error }) => {
-                  if (error) console.error("Error updating read status:", error);
+                  if (error)
+                    console.error("Error updating read status:", error);
                 });
             }
           }
@@ -352,65 +358,117 @@ const Chat = () => {
       return () => {
         if (messageRef.current) observer.unobserve(messageRef.current);
       };
-    }, [message.read_by, userId, message.id]);
+    }, [message.read_by, username, message.id]);
     return (
-      <div
-        className={`mb-4 flex ${
-          message.sender === userId ? "justify-end" : "justify-start"
-        }`}
-      >
-        <motion.div
-          {...handlers}
-          ref={setRefs}
-          className="max-w-[80%] relative"
-          style={{
-            x: swipeState.id === message.id ? swipeState.delta : 0,
-            overflowX: "hidden",
-          }}
+      <div className="mb-4">
+        {/* Display sender name above the message bubble */}
+        <div
+          className={`text-xs mb-2 px-1 ${
+            message.sender === username ? "text-right" : "text-left"
+          }`}
         >
-          <div
-            className="p-2 rounded-lg relative bg-gradient-to-br text-sm"
+          <span
+            className="px-2 py-1  rounded-full shadow-sm"
             style={{
-              background:
-                message.sender === userId
-                  ? "linear-gradient(to bottom right, #3B82F6, #2563EB)"
-                  : "linear-gradient(to bottom right, #374151, #1F2937)",
-              color: message.sender === userId ? "white" : "#F3F4F6",
-              boxShadow:
-                message.sender === userId
-                  ? "4px 4px 10px rgba(59, 130, 246, 0.2), -2px -2px 10px rgba(255, 255, 255, 0.1)"
-                  : "4px 4px 10px rgba(0, 0, 0, 0.2), -2px -2px 10px rgba(255, 255, 255, 0.05)",
+              backgroundColor: "#0e1423",
+              border: "1px solid #465775",
+              backgroundImage: "linear-gradient(90deg, #db7ad7, #8a97fb)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
             }}
           >
-            {message.replyTo && (
-              <div
-                className={`text-xs mb-1 ${
-                  message.sender === userId ? "text-blue-200" : "text-gray-400"
-                }`}
-              >
-                {messages.find((m) => m.id === message.replyTo)?.text ||
-                  "file"}
-              </div>
-            )}
-            <div>{message.text}</div>
-            {renderFilePreview(message)}
-            <div className="flex items-center justify-end gap-1 mt-1">
-              <span
-                className={`text-xs ${
-                  message.sender === userId ? "text-blue-200" : "text-gray-400"
-                }`}
-              >
-                {formatTimestamp(message.timestamp)}
-              </span>
-              <div className="flex items-center">
-                {hasRead ? (
-                  <>
+            {message.sender}
+          </span>
+        </div>
+        <div
+          className={`flex ${
+            message.sender === username ? "justify-end" : "justify-start"
+          }`}
+        >
+          <motion.div
+            {...handlers}
+            ref={setRefs}
+            className="max-w-[80%] relative"
+            style={{
+              x: swipeState.id === message.id ? swipeState.delta : 0,
+              overflowX: "hidden",
+            }}
+          >
+            <div
+              className="p-2 rounded-lg relative bg-gradient-to-br text-sm"
+              style={{
+                background:
+                  message.sender === username
+                    ? "linear-gradient(to bottom right, #3B82F6,rgb(63, 105, 196))"
+                    : "linear-gradient(to bottom right, #374151, #1F2937)",
+                color: message.sender === username ? "white" : "#F3F4F6",
+                boxShadow:
+                  message.sender === username
+                    ? "4px 4px 10px rgba(59, 130, 246, 0.2), -2px -2px 10px rgba(255, 255, 255, 0.1)"
+                    : "4px 4px 10px rgba(0, 0, 0, 0.2), -2px -2px 10px rgba(255, 255, 255, 0.05)",
+              }}
+            >
+              {message.replyTo && (
+                <div
+                  className={`text-xs mb-1 ${
+                    message.sender === username ? "text-blue-200" : "text-gray-400"
+                  }`}
+                >
+                  {messages.find((m) => m.id === message.replyTo)?.text ||
+                    "file"}
+                </div>
+              )}
+              <div>{message.text}</div>
+              {renderFilePreview(message)}
+              <div className="flex items-center justify-end gap-1 mt-1">
+                <span
+                  className={`text-xs ${
+                    message.sender === username ? "text-blue-200" : "text-gray-400"
+                  }`}
+                >
+                  {formatTimestamp(message.timestamp)}
+                </span>
+                <div className="flex items-center">
+                  {hasRead ? (
+                    <>
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        className="text-black ml-1"
+                      >
+                        <path
+                          d="M20 6L9 17L4 12"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        className="text-black ml-[-6px]"
+                      >
+                        <path
+                          d="M18 12L9 17L6.5 14.5"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </>
+                  ) : (
                     <svg
                       width="12"
                       height="12"
                       viewBox="0 0 24 24"
                       fill="none"
-                      className="text-black ml-1"
+                      className="text-gray-400 ml-1"
                     >
                       <path
                         d="M20 6L9 17L4 12"
@@ -420,42 +478,60 @@ const Chat = () => {
                         strokeLinejoin="round"
                       />
                     </svg>
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      className="text-black ml-[-6px]"
-                    >
-                      <path
-                        d="M18 12L9 17L6.5 14.5"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </>
-                ) : (
-                  <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    className="text-gray-400 ml-1"
-                  >
-                    <path
-                      d="M20 6L9 17L4 12"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                )}
+                  )}
+                </div>
               </div>
             </div>
+          </motion.div>
+        </div>
+      </div>
+    );
+  };
+
+  // Enhanced Username Modal with updated styling
+  const UsernameModal = () => {
+    const [tempUsername, setTempUsername] = useState("");
+    const handleSubmit = (e) => {
+      e.preventDefault();
+      if (tempUsername.trim()) {
+        localStorage.setItem("chatUsername", tempUsername.trim());
+        setUsername(tempUsername.trim());
+        setShowUsernameModal(false);
+      }
+    };
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.8, opacity: 0 }}
+          className="bg-[#0E1423] rounded-xl shadow-2xl p-6 max-w-xs w-full mx-4"
+        >
+          <div className="flex flex-col items-center">
+            <FaUser size={36} className="text-white mb-2" />
+            <h2 className="text-2xl font-bold mb-2 bg-gradient-to-r from-[#db7ad7] to-[#8a97fb] bg-clip-text text-transparent text-center">
+              Welcome to Chat
+            </h2>
+            <p className="mb-4 text-center bg-gradient-to-r from-[#db7ad7] to-[#8a97fb] bg-clip-text text-transparent">
+              Enter your username to join the conversation.
+            </p>
           </div>
+          <form onSubmit={handleSubmit}>
+            <input
+              type="text"
+              value={tempUsername}
+              onChange={(e) => setTempUsername(e.target.value)}
+              placeholder="Your username"
+              className="w-full px-4 py-3 rounded-md mb-4 focus:outline-none focus:ring-2 focus:ring-white text-gray-800"
+            />
+            <button
+              type="submit"
+              className="w-full bg-white text-[#0E1423] font-semibold py-2 rounded-md transition-colors hover:bg-gray-200 flex items-center justify-center gap-2"
+            >
+              <FaUser />
+              Save Username
+            </button>
+          </form>
         </motion.div>
       </div>
     );
@@ -470,6 +546,7 @@ const Chat = () => {
         overscrollBehavior: "none",
       }}
     >
+      {showUsernameModal && <UsernameModal />}
       <div className="p-4 bg-[#2D3748] text-white text-center font-semibold text-lg border-b border-gray-600">
         Anonymous Public Thread
       </div>
