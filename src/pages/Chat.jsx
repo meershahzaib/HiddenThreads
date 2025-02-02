@@ -78,6 +78,8 @@ const Chat = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [lastSentMessageId, setLastSentMessageId] = useState(null);
   const [showUsernameModal, setShowUsernameModal] = useState(false);
+  // State for handling deletion via our custom modal
+  const [deletionCandidate, setDeletionCandidate] = useState(null);
 
   const channelRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -123,6 +125,8 @@ const Chat = () => {
     const storedUsername = localStorage.getItem("chatUsername");
     if (storedUsername) {
       setUsername(storedUsername);
+      // Set the custom session variable for this connection.
+      supabase.rpc('set_current_user', { username: storedUsername });
     } else {
       setShowUsernameModal(true);
     }
@@ -239,8 +243,7 @@ const Chat = () => {
         };
         const { data, error } = await supabase
           .from("messages")
-          .insert([messageToSend])
-          .select();
+          .insert([messageToSend]);
         if (error) throw error;
         if (data && data[0]) {
           setMessages((prev) => [...prev, data[0]]);
@@ -315,17 +318,32 @@ const Chat = () => {
     );
   }, []);
 
-  // Updated SafeMessageComponent to display the sender’s username outside the bubble.
-  const SafeMessageComponent = ({ message }) => {
+  // Updated SafeMessageComponent with long press detection.
+  // When the current user long presses on their own message for 0.8 seconds,
+  // it calls onLongPressDelete to show our custom deletion modal.
+  const SafeMessageComponent = ({ message, onLongPressDelete }) => {
+    // Wrap the swiping callback to cancel long press if movement is detected.
+    const handleSwiping = (e) => {
+      if (Math.abs(e.deltaX) > 5) {
+        handleLongPressEnd();
+      }
+      swipeConfig.onSwiping(e, message.id);
+    };
+
     const handlers = useSwipeable({
-      onSwiping: (e) => swipeConfig.onSwiping(e, message.id),
-      onSwiped: (e) => swipeConfig.onSwiped(e, message.id),
+      onSwiping: handleSwiping,
+      onSwiped: (e) => {
+        swipeConfig.onSwiped(e, message.id);
+      },
       trackMouse: swipeConfig.trackMouse,
       delta: swipeConfig.delta,
-      preventDefaultTouchmoveEvent: swipeConfig.preventDefaultTouchmoveEvent,
+      preventDefaultTouchmoveEvent: true,
     });
     const messageRef = useRef();
+    const longPressTimer = useRef(null);
+
     const hasRead = (message.read_by || []).includes(username);
+
     const setRefs = useCallback(
       (node) => {
         handlers.ref(node);
@@ -333,6 +351,22 @@ const Chat = () => {
       },
       [handlers.ref]
     );
+
+    // Start a 0.8-second timer on press to trigger the delete option.
+    const handleLongPressStart = () => {
+      if (message.sender !== username) return;
+      longPressTimer.current = setTimeout(() => {
+        onLongPressDelete(message);
+      }, 800); // 0.8 seconds long press
+    };
+
+    const handleLongPressEnd = () => {
+      if (longPressTimer.current) {
+        clearTimeout(longPressTimer.current);
+        longPressTimer.current = null;
+      }
+    };
+
     useEffect(() => {
       const observer = new IntersectionObserver(
         ([entry]) => {
@@ -359,6 +393,7 @@ const Chat = () => {
         if (messageRef.current) observer.unobserve(messageRef.current);
       };
     }, [message.read_by, username, message.id]);
+
     return (
       <div className="mb-4">
         {/* Display sender name above the message bubble */}
@@ -368,7 +403,7 @@ const Chat = () => {
           }`}
         >
           <span
-            className="px-2 py-1  rounded-full shadow-sm"
+            className="px-2 py-1 rounded-full shadow-sm"
             style={{
               backgroundColor: "#0e1423",
               border: "1px solid #465775",
@@ -393,13 +428,38 @@ const Chat = () => {
               x: swipeState.id === message.id ? swipeState.delta : 0,
               overflowX: "hidden",
             }}
+            // Merge swipeable events with our long press events.
+            onMouseDown={(e) => {
+              if (handlers.onMouseDown) handlers.onMouseDown(e);
+              handleLongPressStart();
+            }}
+            onMouseUp={(e) => {
+              if (handlers.onMouseUp) handlers.onMouseUp(e);
+              handleLongPressEnd();
+            }}
+            onMouseLeave={(e) => {
+              if (handlers.onMouseLeave) handlers.onMouseLeave(e);
+              handleLongPressEnd();
+            }}
+            onTouchStart={(e) => {
+              if (handlers.onTouchStart) handlers.onTouchStart(e);
+              handleLongPressStart();
+            }}
+            onTouchEnd={(e) => {
+              if (handlers.onTouchEnd) handlers.onTouchEnd(e);
+              handleLongPressEnd();
+            }}
+            onTouchCancel={(e) => {
+              if (handlers.onTouchCancel) handlers.onTouchCancel(e);
+              handleLongPressEnd();
+            }}
           >
             <div
               className="p-2 rounded-lg relative bg-gradient-to-br text-sm"
               style={{
                 background:
                   message.sender === username
-                    ? "linear-gradient(to bottom right, #3B82F6,rgb(63, 105, 196))"
+                    ? "linear-gradient(to bottom right, #3B82F6, rgb(63, 105, 196))"
                     : "linear-gradient(to bottom right, #374151, #1F2937)",
                 color: message.sender === username ? "white" : "#F3F4F6",
                 boxShadow:
@@ -411,7 +471,9 @@ const Chat = () => {
               {message.replyTo && (
                 <div
                   className={`text-xs mb-1 ${
-                    message.sender === username ? "text-blue-200" : "text-gray-400"
+                    message.sender === username
+                      ? "text-blue-200"
+                      : "text-gray-400"
                   }`}
                 >
                   {messages.find((m) => m.id === message.replyTo)?.text ||
@@ -423,7 +485,9 @@ const Chat = () => {
               <div className="flex items-center justify-end gap-1 mt-1">
                 <span
                   className={`text-xs ${
-                    message.sender === username ? "text-blue-200" : "text-gray-400"
+                    message.sender === username
+                      ? "text-blue-200"
+                      : "text-gray-400"
                   }`}
                 >
                   {formatTimestamp(message.timestamp)}
@@ -488,13 +552,51 @@ const Chat = () => {
     );
   };
 
-  // Enhanced Username Modal with updated styling
+  // Custom Delete Confirmation Modal (Apple-like, smaller)
+  const DeleteConfirmationModal = ({ message, onConfirm, onCancel }) => {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.2 }}
+          className="bg-[#0E1423] rounded-xl p-4 max-w-[220px] w-full mx-4 border border-gray-700 shadow-md"
+        >
+          <h3 className="text-base font-semibold text-white mb-2 text-center">
+            Delete Message?
+          </h3>
+          <p className="text-xs text-gray-300 mb-4 text-center">
+            This cannot be undone.
+          </p>
+          <div className="flex justify-around">
+            <button
+              onClick={onCancel}
+              className="px-3 py-1 rounded border border-gray-600 text-gray-300 text-xs hover:bg-gray-700 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onConfirm}
+              className="px-3 py-1 rounded bg-red-600 text-white text-xs hover:bg-red-700 transition-colors"
+            >
+              Delete
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  };
+
+  // Enhanced Username Modal with updated styling and RPC call to set the session variable.
   const UsernameModal = () => {
     const [tempUsername, setTempUsername] = useState("");
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
       e.preventDefault();
       if (tempUsername.trim()) {
         localStorage.setItem("chatUsername", tempUsername.trim());
+        // Call the RPC function to set the session variable for the current connection.
+        await supabase.rpc("set_current_user", { username: tempUsername.trim() });
         setUsername(tempUsername.trim());
         setShowUsernameModal(false);
       }
@@ -502,43 +604,67 @@ const Chat = () => {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
         <motion.div
-  initial={{ opacity: 0, y: 8 }}
-  animate={{ opacity: 1, y: 0 }}
-  exit={{ opacity: 0, y: -8 }}
-  transition={{ duration: 0.24, ease: [0.33, 1, 0.68, 1] }}
-  className="bg-[#0E1423] rounded-xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.25)] p-6 max-w-xs w-full mx-4 border border-white/10 backdrop-blur-lg"
->
-  <div className="flex flex-col items-center space-y-4 mb-6">
-    <div className="p-2 bg-gradient-to-br from-[#db7ad720] to-[#8a97fb20] rounded-lg border border-white/5">
-      <FaUser size={20} className="text-[#8a97fb]" />
-    </div>
-    <h2 className="text-[18px] font-semibold bg-gradient-to-r from-[#db7ad7] to-[#8a97fb] bg-clip-text text-transparent tracking-tight">
-      Welcome to HiddenThreads
-    </h2>
-  </div>
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.24, ease: [0.33, 1, 0.68, 1] }}
+          className="bg-[#0E1423] rounded-xl shadow-lg p-6 max-w-xs w-full mx-4 border border-gray-700"
+        >
+          <div className="flex flex-col items-center space-y-4 mb-6">
+            <div className="p-2 bg-gradient-to-br from-[#db7ad720] to-[#8a97fb20] rounded-lg border border-gray-600">
+              <FaUser size={20} className="text-[#8a97fb]" />
+            </div>
+            <h2 className="text-[18px] font-semibold bg-gradient-to-r from-[#db7ad7] to-[#8a97fb] bg-clip-text text-transparent tracking-tight">
+              Welcome to HiddenThreads
+            </h2>
+          </div>
 
-  <form onSubmit={handleSubmit} className="space-y-4">
-    <div className="relative group">
-      <input
-        type="text"
-        value={tempUsername}
-        onChange={(e) => setTempUsername(e.target.value)}
-        placeholder="Username"
-        className="w-full px-3 py-2 rounded-[8px] bg-white/5 text-[14px] text-white placeholder-white/40 focus:outline-none focus:ring-1 focus:ring-[#8a97fb] caret-[#8a97fb] border border-white/10 transition-all duration-200"
-      />
-    </div>
-    <motion.button
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
-      className="w-full bg-gradient-to-r from-[#8a97fb] to-[#db7ad7] text-white font-medium text-[13.5px] py-2.5 rounded-[8px] hover:shadow-[0_8px_20px_-6px_rgba(138,151,251,0.3)] transition-all flex items-center justify-center gap-2"
-    >
-      <FaUser className="text-[12px] text-white/90" />
-      <span>Continue</span>
-    </motion.button>
-  </form>
-</motion.div>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="relative">
+              <input
+                type="text"
+                value={tempUsername}
+                onChange={(e) => setTempUsername(e.target.value)}
+                placeholder="Username"
+                className="w-full px-3 py-2 rounded bg-gray-800 text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 border border-gray-700 transition-all duration-200"
+              />
+            </div>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="w-full bg-gradient-to-r from-blue-500 to-purple-500 text-white font-medium text-sm py-2 rounded transition-all flex items-center justify-center gap-2"
+            >
+              <FaUser className="text-xs" />
+              <span>Continue</span>
+            </motion.button>
+          </form>
+        </motion.div>
       </div>
     );
+  };
+
+  // Handle deletion confirmation by calling Supabase to delete the message.
+  const handleConfirmDeletion = async () => {
+    if (deletionCandidate) {
+      try {
+        const { error } = await supabase
+          .from("messages")
+          .delete()
+          .eq("id", deletionCandidate.id);
+        if (error) {
+          console.error("Error deleting message:", error);
+        } else {
+          // Remove the message from local state immediately.
+          setMessages((prev) =>
+            prev.filter((msg) => msg.id !== deletionCandidate.id)
+          );
+        }
+      } catch (error) {
+        console.error("Error:", error);
+      } finally {
+        setDeletionCandidate(null);
+      }
+    }
   };
 
   return (
@@ -551,7 +677,7 @@ const Chat = () => {
       }}
     >
       {showUsernameModal && <UsernameModal />}
-      <div className="p-4 bg-[#2D3748] text-white text-center font-semibold text-lg border-b border-gray-600">
+      <div className="p-4 bg-[#2D3748] text-white text-center font-semibold text-lg border-b border-gray-700">
         Anonymous Public Thread
       </div>
 
@@ -570,7 +696,16 @@ const Chat = () => {
           </div>
         ) : (
           messages.map((message) => (
-            <SafeMessageComponent key={message.id} message={message} />
+            <SafeMessageComponent
+              key={message.id}
+              message={message}
+              onLongPressDelete={(msg) => {
+                // Only trigger deletion modal for the current user's message
+                if (msg.sender === username) {
+                  setDeletionCandidate(msg);
+                }
+              }}
+            />
           ))
         )}
         <div ref={messagesEndRef} />
@@ -597,9 +732,19 @@ const Chat = () => {
         )}
       </AnimatePresence>
 
+      <AnimatePresence>
+        {deletionCandidate && (
+          <DeleteConfirmationModal
+            message={deletionCandidate}
+            onConfirm={handleConfirmDeletion}
+            onCancel={() => setDeletionCandidate(null)}
+          />
+        )}
+      </AnimatePresence>
+
       <form
         onSubmit={sendMessage}
-        className="p-4 border-t border-gray-600 bg-[#2D3748] safe-area-bottom"
+        className="p-4 border-t border-gray-700 bg-[#2D3748] safe-area-bottom"
       >
         <div className="flex items-center gap-3">
           <label className="cursor-pointer text-gray-400 hover:text-white transition-colors">
@@ -638,7 +783,7 @@ const Chat = () => {
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             placeholder="Type your message..."
-            className="flex-grow px-4 py-2 rounded-xl border border-gray-600 focus:outline-none focus:border-blue-500 bg-[#1E293B] text-white text-sm transition-colors"
+            className="flex-grow px-4 py-2 rounded-xl border border-gray-700 focus:outline-none focus:border-blue-500 bg-[#1E293B] text-white text-sm transition-colors"
             style={{
               fontSize: "16px",
               WebkitUserSelect: "text",
