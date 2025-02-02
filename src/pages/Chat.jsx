@@ -502,37 +502,41 @@ const Chat = () => {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
         <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.8, opacity: 0 }}
-          className="bg-[#0E1423] rounded-xl shadow-2xl p-6 max-w-xs w-full mx-4"
-        >
-          <div className="flex flex-col items-center">
-            <FaUser size={36} className="text-white mb-2" />
-            <h2 className="text-2xl font-bold mb-2 bg-gradient-to-r from-[#db7ad7] to-[#8a97fb] bg-clip-text text-transparent text-center">
-              Welcome to Chat
-            </h2>
-            <p className="mb-4 text-center bg-gradient-to-r from-[#db7ad7] to-[#8a97fb] bg-clip-text text-transparent">
-              Enter your username to join the conversation.
-            </p>
-          </div>
-          <form onSubmit={handleSubmit}>
-            <input
-              type="text"
-              value={tempUsername}
-              onChange={(e) => setTempUsername(e.target.value)}
-              placeholder="Your username"
-              className="w-full px-4 py-3 rounded-md mb-4 focus:outline-none focus:ring-2 focus:ring-white text-gray-800"
-            />
-            <button
-              type="submit"
-              className="w-full bg-white text-[#0E1423] font-semibold py-2 rounded-md transition-colors hover:bg-gray-200 flex items-center justify-center gap-2"
-            >
-              <FaUser />
-              Save Username
-            </button>
-          </form>
-        </motion.div>
+  initial={{ opacity: 0, y: 8 }}
+  animate={{ opacity: 1, y: 0 }}
+  exit={{ opacity: 0, y: -8 }}
+  transition={{ duration: 0.24, ease: [0.33, 1, 0.68, 1] }}
+  className="bg-[#0E1423] rounded-xl shadow-[0_20px_40px_-10px_rgba(0,0,0,0.25)] p-6 max-w-xs w-full mx-4 border border-white/10 backdrop-blur-lg"
+>
+  <div className="flex flex-col items-center space-y-4 mb-6">
+    <div className="p-2 bg-gradient-to-br from-[#db7ad720] to-[#8a97fb20] rounded-lg border border-white/5">
+      <FaUser size={20} className="text-[#8a97fb]" />
+    </div>
+    <h2 className="text-[18px] font-semibold bg-gradient-to-r from-[#db7ad7] to-[#8a97fb] bg-clip-text text-transparent tracking-tight">
+      Welcome to HiddenThreads
+    </h2>
+  </div>
+
+  <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="relative group">
+      <input
+        type="text"
+        value={tempUsername}
+        onChange={(e) => setTempUsername(e.target.value)}
+        placeholder="Username"
+        className="w-full px-3 py-2 rounded-[8px] bg-white/5 text-[14px] text-white placeholder-white/40 focus:outline-none focus:ring-1 focus:ring-[#8a97fb] caret-[#8a97fb] border border-white/10 transition-all duration-200"
+      />
+    </div>
+    <motion.button
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      className="w-full bg-gradient-to-r from-[#8a97fb] to-[#db7ad7] text-white font-medium text-[13.5px] py-2.5 rounded-[8px] hover:shadow-[0_8px_20px_-6px_rgba(138,151,251,0.3)] transition-all flex items-center justify-center gap-2"
+    >
+      <FaUser className="text-[12px] text-white/90" />
+      <span>Continue</span>
+    </motion.button>
+  </form>
+</motion.div>
       </div>
     );
   };
