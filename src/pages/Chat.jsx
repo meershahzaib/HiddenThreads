@@ -1,18 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaPaperclip, FaPaperPlane, FaUser } from "react-icons/fa";
-// Import the client from a dedicated file to ensure a singleton instance
 import { supabase } from "../supabaseClient";
 import { useSwipeable } from "react-swipeable";
 
-// Helper: Get hidden message IDs from localStorage (or return an empty array)
-const getHiddenMessages = () => {
-  const stored = localStorage.getItem("hiddenMessages");
-  return stored ? JSON.parse(stored) : [];
-};
-
 const ReplyPreview = ({ originalMessage, onCancel }) => {
-  // Determine the preview text based on the original message content
   const previewText =
     originalMessage?.text ||
     (originalMessage?.file?.type.startsWith("image/")
@@ -71,10 +63,8 @@ const ReplyPreview = ({ originalMessage, onCancel }) => {
 };
 
 const Chat = () => {
-  // State for messages and chat content
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
-  // Use a username system (custom, not Supabase Auth)
   const [username, setUsername] = useState("");
   const [file, setFile] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
@@ -84,10 +74,6 @@ const Chat = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [lastSentMessageId, setLastSentMessageId] = useState(null);
   const [showUsernameModal, setShowUsernameModal] = useState(false);
-  // State for handling deletion (i.e. hiding) via our custom modal.
-  const [deletionCandidate, setDeletionCandidate] = useState(null);
-  // State to track which messages have been hidden for this user.
-  const [hiddenMessages, setHiddenMessages] = useState(getHiddenMessages());
 
   const channelRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -129,12 +115,9 @@ const Chat = () => {
   };
 
   useEffect(() => {
-    // Check for saved username in localStorage; if not, prompt the user.
     const storedUsername = localStorage.getItem("chatUsername");
     if (storedUsername) {
       setUsername(storedUsername);
-      // Optionally, set the session variable via RPC if needed.
-      // await supabase.rpc("set_current_user", { username: storedUsername });
     } else {
       setShowUsernameModal(true);
     }
@@ -248,6 +231,7 @@ const Chat = () => {
           replyTo: replyTo,
           file: fileData,
           read_by: [],
+          hidden: false
         };
         const { data, error } = await supabase
           .from("messages")
@@ -326,11 +310,7 @@ const Chat = () => {
     );
   }, []);
 
-  // Updated SafeMessageComponent with long press detection.
-  // When the current user long presses on their own message for 0.8 seconds,
-  // it calls onLongPressDelete to show our custom deletion modal.
-  const SafeMessageComponent = ({ message, onLongPressDelete }) => {
-    // Wrap the swiping callback to cancel long press if movement is detected.
+  const SafeMessageComponent = ({ message }) => {
     const handleSwiping = (e) => {
       if (Math.abs(e.deltaX) > 5) {
         handleLongPressEnd();
@@ -360,13 +340,7 @@ const Chat = () => {
       [handlers.ref]
     );
 
-    // Start a 0.8-second timer on press to trigger the delete (hide) option.
-    const handleLongPressStart = () => {
-      if (message.sender !== username) return;
-      longPressTimer.current = setTimeout(() => {
-        onLongPressDelete(message);
-      }, 600); // 0.8 seconds long press
-    };
+    const handleLongPressStart = () => {};
 
     const handleLongPressEnd = () => {
       if (longPressTimer.current) {
@@ -403,8 +377,7 @@ const Chat = () => {
     }, [message.read_by, username, message.id]);
 
     return (
-      <div className="mb-4">
-        {/* Display sender name above the message bubble */}
+      <div className="mb-4" id={`message-${message.id}`}>
         <div
           className={`text-xs mb-2 px-1 ${
             message.sender === username ? "text-right" : "text-left"
@@ -436,7 +409,6 @@ const Chat = () => {
               x: swipeState.id === message.id ? swipeState.delta : 0,
               overflowX: "hidden",
             }}
-            // Merge swipeable events with our long press events.
             onMouseDown={(e) => {
               if (handlers.onMouseDown) handlers.onMouseDown(e);
               handleLongPressStart();
@@ -560,55 +532,41 @@ const Chat = () => {
     );
   };
 
-  // Custom Delete Confirmation Modal (Apple-like, smaller)
-  const DeleteConfirmationModal = ({ message, onConfirm, onCancel }) => {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.2 }}
-          className="bg-[#0E1423] rounded-xl p-4 max-w-[220px] w-full mx-4 border border-gray-700 shadow-md"
-        >
-          <h3 className="text-base font-semibold text-white mb-2 text-center">
-            Delete Message?
-          </h3>
-          <p className="text-xs text-gray-300 mb-4 text-center">
-            This cannot be undone.
-          </p>
-          <div className="flex justify-around">
-            <button
-              onClick={onCancel}
-              className="px-3 py-1 rounded border border-gray-600 text-gray-300 text-xs hover:bg-gray-700 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={onConfirm}
-              className="px-3 py-1 rounded bg-red-600 text-white text-xs hover:bg-red-700 transition-colors"
-            >
-              Delete
-            </button>
-          </div>
-        </motion.div>
-      </div>
-    );
-  };
-
-  // Enhanced Username Modal with updated styling and RPC call.
-  // (RPC call remains in case you want to use it later for other purposes.)
   const UsernameModal = () => {
     const [tempUsername, setTempUsername] = useState("");
+    const [error, setError] = useState("");
+
     const handleSubmit = async (e) => {
       e.preventDefault();
-      if (tempUsername.trim()) {
-        localStorage.setItem("chatUsername", tempUsername.trim());
-        await supabase.rpc("set_current_user", { username: tempUsername.trim() });
-        setUsername(tempUsername.trim());
+      const usernameToCheck = tempUsername.trim();
+      if (!usernameToCheck) return;
+
+      try {
+        // Check for existing username in messages
+        const { data, error: fetchError } = await supabase
+          .from("messages")
+          .select("sender")
+          .eq("sender", usernameToCheck)
+          .limit(1);
+
+        if (fetchError) throw fetchError;
+
+        if (data && data.length > 0) {
+          setError("Username is already taken. Please choose another.");
+          return;
+        }
+
+        // No duplicates, proceed
+        localStorage.setItem("chatUsername", usernameToCheck);
+        await supabase.rpc("set_current_user", { username: usernameToCheck });
+        setUsername(usernameToCheck);
         setShowUsernameModal(false);
+      } catch (err) {
+        console.error("Error checking username:", err);
+        setError("An error occurred while checking username availability.");
       }
     };
+
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
         <motion.div
@@ -626,7 +584,6 @@ const Chat = () => {
               Welcome to HiddenThreads
             </h2>
           </div>
-
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="relative">
               <input
@@ -637,6 +594,9 @@ const Chat = () => {
                 className="w-full px-3 py-2 rounded bg-gray-800 text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 border border-gray-700 transition-all duration-200"
               />
             </div>
+            {error && (
+              <div className="text-red-400 text-sm mt-2">{error}</div>
+            )}
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
@@ -649,17 +609,6 @@ const Chat = () => {
         </motion.div>
       </div>
     );
-  };
-
-  // Handle deletion confirmation by "hiding" the message.
-  // This adds the message's ID to the hiddenMessages state and localStorage.
-  const handleConfirmDeletion = () => {
-    if (deletionCandidate) {
-      const newHidden = [...hiddenMessages, deletionCandidate.id];
-      setHiddenMessages(newHidden);
-      localStorage.setItem("hiddenMessages", JSON.stringify(newHidden));
-      setDeletionCandidate(null);
-    }
   };
 
   return (
@@ -675,7 +624,6 @@ const Chat = () => {
       <div className="p-4 bg-[#2D3748] text-white text-center font-semibold text-lg border-b border-gray-700">
         Anonymous Public Thread
       </div>
-
       <div
         ref={scrollAreaRef}
         onScroll={handleScroll}
@@ -690,25 +638,12 @@ const Chat = () => {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
           </div>
         ) : (
-          // Filter out messages whose IDs are in hiddenMessages
-          messages
-            .filter((message) => !hiddenMessages.includes(message.id))
-            .map((message) => (
-              <SafeMessageComponent
-                key={message.id}
-                message={message}
-                onLongPressDelete={(msg) => {
-                  // Only trigger deletion modal for the current user's message
-                  if (msg.sender === username) {
-                    setDeletionCandidate(msg);
-                  }
-                }}
-              />
-            ))
+          messages.map((message) => (
+            <SafeMessageComponent key={message.id} message={message} />
+          ))
         )}
         <div ref={messagesEndRef} />
       </div>
-
       {!shouldAutoScroll && messages.length > 0 && (
         <button
           onClick={() => {
@@ -720,7 +655,6 @@ const Chat = () => {
           ↓
         </button>
       )}
-
       <AnimatePresence>
         {replyTo && (
           <ReplyPreview
@@ -729,17 +663,6 @@ const Chat = () => {
           />
         )}
       </AnimatePresence>
-
-      <AnimatePresence>
-        {deletionCandidate && (
-          <DeleteConfirmationModal
-            message={deletionCandidate}
-            onConfirm={handleConfirmDeletion}
-            onCancel={() => setDeletionCandidate(null)}
-          />
-        )}
-      </AnimatePresence>
-
       <form
         onSubmit={sendMessage}
         className="p-4 border-t border-gray-700 bg-[#2D3748] safe-area-bottom"
@@ -755,7 +678,6 @@ const Chat = () => {
               disabled={isUploading}
             />
           </label>
-
           {filePreview && (
             <div className="relative">
               <img
@@ -763,19 +685,8 @@ const Chat = () => {
                 alt="Preview"
                 className="w-8 h-8 object-cover rounded-lg border border-gray-600/20"
               />
-              <button
-                type="button"
-                onClick={() => {
-                  setFile(null);
-                  setFilePreview(null);
-                }}
-                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-xs shadow-lg"
-              >
-                ✕
-              </button>
             </div>
           )}
-
           <input
             type="text"
             value={newMessage}
@@ -789,7 +700,6 @@ const Chat = () => {
             }}
             disabled={isUploading}
           />
-
           <button
             type="submit"
             className={`${
@@ -801,7 +711,6 @@ const Chat = () => {
           </button>
         </div>
       </form>
-
       <style>{`
         html, body {
           overscroll-behavior: none;
