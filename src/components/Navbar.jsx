@@ -13,6 +13,8 @@ const resources = [
     { title: 'Documentation', icon: BookOpen, description: 'Learn how to use our platform', link: '/docs' },
     { title: 'Community', icon: Users, description: 'Join our growing community', link: '/community' },
     { title: 'Showcase', icon: Star, description: 'See what others have built', link: '/showcase' },
+
+
 ];
 
 const NavLink = ({ href, children }) => (
@@ -61,7 +63,7 @@ function Navbar() {
 
                     {/* Desktop Navigation */}
                     <div className="hidden md:flex items-center space-x-4">
-                        <NavLink href="/features">Features</NavLink>
+                        <NavLink href="/groupchat">Join Group</NavLink>
                         <div className="relative">
                             <button
                                 className="px-4 py-2 text-gray-300 hover:text-white flex items-center space-x-1"
@@ -124,7 +126,7 @@ function Navbar() {
                             className="md:hidden"
                         >
                             <div className="px-2 pt-2 pb-3 space-y-1">
-                                <Link to="/features" className="block px-3 py-2 text-gray-300 hover:text-white">Features</Link>
+                                <Link to="/groupchat" className="block px-3 py-2 text-gray-300 hover:text-white">Join Group</Link>
                                 <Link to="/resources" className="block px-3 py-2 text-gray-300 hover:text-white">Resources</Link>
                                 <Link to="/pricing" className="block px-3 py-2 text-gray-300 hover:text-white">Pricing</Link>
                                 <Link to="/about" className="block px-3 py-2 text-gray-300 hover:text-white">About</Link>
