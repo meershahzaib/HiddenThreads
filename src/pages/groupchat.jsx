@@ -6,14 +6,13 @@ import React, {
   useRef,
 } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaPaperclip, FaUser, FaPaperPlane } from "react-icons/fa";
+import { FaPaperclip, FaUser, FaArrowAltCircleRight } from "react-icons/fa";
 import { supabase } from "../supabaseClient";
 import { useSwipeable } from "react-swipeable";
 
-// ─── REPLY PREVIEW COMPONENT (REVERTED TO ORIGINAL) ─────────────────────────
+// ─── REPLY PREVIEW COMPONENT (ORIGINAL STYLE) ─────────────────────────────
 
 const ReplyPreview = ({ originalMessage, onCancel }) => {
-  // This is the original logic without excerpt.
   const previewText =
     originalMessage?.text ||
     (originalMessage?.file?.type.startsWith("image/") ? "Image" : "File");
@@ -81,7 +80,6 @@ const UsernameModal = () => {
     if (!usernameToCheck) return;
 
     try {
-      // Check for duplicate username in private_messages
       const { data, error: fetchError } = await supabase
         .from("private_messages")
         .select("sender")
@@ -208,13 +206,13 @@ const GroupModal = ({ onJoin }) => {
   );
 };
 
-// ─── PINNED PREWRITTEN MESSAGE COMPONENT ───────────────────────────────────
+// ─── PINNED PREWRITTEN MESSAGE COMPONENT (UPDATED GRADIENT & DIVIDER) ───────────────────────────────────
 
 const PinnedMessage = () => {
   const guidelines =
-    "📌 𝙶𝚛𝚘𝚞𝚙 𝙶𝚞𝚒𝚍𝚎𝚕𝚒𝚗𝚎𝚜 & 𝙰𝚗𝚗𝚘𝚞𝚗𝚌𝚎𝚖𝚎𝚗𝚝 📌 𝚆𝚎𝚕𝚌𝚘𝚖𝚎! 𝚃𝚑𝚒𝚜 𝚒𝚜 𝚊𝚗 𝚘𝚙𝚎𝚗 𝚊𝚗𝚍 𝚞𝚗𝚛𝚎𝚜𝚝𝚛𝚒𝚌𝚝𝚎𝚍 𝚜𝚙𝚊𝚌𝚎 𝚠𝚑𝚎𝚛𝚎 𝚖𝚎𝚖𝚋𝚎𝚛𝚜 𝚌𝚊𝚗 𝚏𝚛𝚎𝚎𝚕𝚒 𝚒𝚗𝚝𝚎𝚛𝚊𝚌𝚝, 𝚜𝚑𝚊𝚛𝚎, 𝚊𝚗𝚍 𝚎𝚗𝚐𝚊𝚐𝚎 𝚠𝚒𝚝𝚑𝚘𝚞𝚝 𝚌𝚘𝚗𝚌𝚎𝚛𝚗𝚜 𝚊𝚋𝚘𝚞𝚝 𝚎𝚌𝚎𝚜𝚜𝚒𝚟𝚎 𝚖𝚘𝚍𝚎𝚛𝚊𝚝𝚒𝚘𝚗. ✅ 𝙵𝚛𝚎𝚎𝚍𝚘𝚖 𝚘𝚏 𝙴𝚗𝚙𝚛𝚎𝚜𝚜𝚒𝚘𝚗 – 𝙴𝚗𝚐𝚊𝚐𝚎 𝚒𝚗 𝚍𝚒𝚜𝚌𝚞𝚜𝚜𝚒𝚘𝚗𝚜 𝚠𝚒𝚝𝚑𝚘𝚞𝚝 𝚞𝚗𝚗𝚎𝚌𝚎𝚜𝚜𝚊𝚛𝚢 𝚛𝚎𝚜𝚝𝚛𝚒𝚌𝚝𝚒𝚘𝚗𝚜. ✅ 𝚁𝚎𝚕𝚊𝚟𝚎𝚍 𝙴𝚗𝚟𝚒𝚛𝚘𝚗𝚖𝚎𝚗𝚝 – 𝙽𝚘 𝚛𝚒𝚐𝚒𝚍 𝚛𝚞𝚕𝚎𝚜; 𝚎𝚗𝚓𝚘𝚒 𝚒𝚘𝚞𝚛 𝚝𝚒𝚖𝚎 𝚑𝚎𝚛𝚎. ✅ 𝚁𝚎𝚜𝚙𝚎𝚌𝚝 & 𝙲𝚘𝚞𝚛𝚝𝚎𝚜𝚒 – 𝚆𝚑𝚒𝚕𝚎 𝚝𝚑𝚎𝚛𝚎 𝚊𝚛𝚎 𝚖𝚒𝚗𝚒𝚖𝚊𝚕 𝚐𝚞𝚒𝚍𝚎𝚕𝚒𝚗𝚎𝚜, 𝚖𝚞𝚝𝚞𝚊𝚕 𝚛𝚎𝚜𝚙𝚎𝚌𝚝 𝚒𝚜 𝚎𝚗𝚌𝚘𝚞𝚛𝚊𝚐𝚎𝚍. 𝙴𝚗𝚓𝚘𝚒 𝚢𝚘𝚞𝚛 𝚝𝚒𝚖𝚎 𝚊𝚗𝚍 𝚖𝚊𝚔𝚎 𝚝𝚑𝚎 𝚖𝚘𝚜𝚝 𝚘𝚏 𝚝𝚑𝚒𝚜 𝚜𝚙𝚊𝚌𝚎! 🚀";
+    "📌 𝙶𝚛𝚘𝚞𝚙 𝙶𝚞𝚒𝚍𝚎𝚕𝚒𝚗𝚎𝚜 & 𝙰𝚗𝚗𝚘𝚞𝚗𝚌𝚎𝚖𝚎𝚗𝚝 📌 𝚆𝚎𝚕𝚌𝚘𝚖𝚎! 𝚃𝚑𝚒𝚜 𝚒𝚜 𝚊𝚗 𝚘𝚙𝚎𝚗 𝚊𝚗𝚍 𝚞𝚗𝚛𝚎𝚜𝚝𝚛𝚒𝚌𝚝𝚎𝚍 𝚜𝚙𝚊𝚌𝚎 𝚠𝚑𝚎𝚛𝚎 𝚖𝚎𝚖𝚋𝚎𝚛𝚜 𝚌𝚊𝚗 𝚏𝚛𝚎𝚎𝚕𝚒 𝚒𝚗𝚝𝚎𝚛𝚊𝚌𝚝, 𝚜𝚑𝚊𝚛𝚎, 𝚊𝚗𝚍 𝚎𝚗𝚐𝚊𝚐𝚎 𝚠𝚒𝚝𝚑𝚘𝚞𝚝 𝚌𝚘𝚗𝚌𝚎𝚛𝚗𝚜 𝚊𝚋𝚘𝚞𝚝 𝚎𝚌𝚎𝚜𝚜𝚒𝚟𝚎 𝚖𝚘𝚍𝚎𝚛𝚊𝚝𝚒𝚘𝚗. ✅ 𝙵𝚛𝚎𝚎𝚍𝚘𝚖 𝚘𝚏 𝙴𝚗𝚙𝚛𝚎𝚜𝚜𝚒𝚘𝚗 – 𝙴𝚗𝚐𝚊𝚐𝚎 𝚒𝚗 𝚍𝚒𝚜𝚌𝚞𝚜𝚜𝚒𝚘𝚗𝚜 𝚠𝚒𝚝𝚑𝚘𝚞𝚝 𝚞𝚗𝚗𝚎𝚌𝚎𝚜𝚜𝚊𝚛𝚢 𝚛𝚎𝚜𝚝𝚛𝚒𝚌𝚝𝚒𝚘𝚗𝚜. ✅ 𝚁𝚎𝚕𝚊𝚟𝚎𝚍 𝙴𝚗𝚟𝚒𝚛𝚘𝚗𝚖𝚎𝚗𝚝 – 𝙽𝚘 𝚛𝚒𝚐𝚒𝚍 𝚛𝚞𝚕𝚎𝚜; 𝚎𝚗𝚓𝚘𝚒 𝚒𝚘𝚞𝚛 𝚝𝚒𝚖𝚎 𝚑𝚎𝚛𝚎. ✅ 𝚁𝚎𝚜𝚙𝚎𝚌𝚝 & 𝙲𝚘𝚞𝚛𝚝𝚎𝚜𝚒 – 𝚆𝚑𝚒𝚕𝚎 𝚝𝚑𝚎𝚛𝚎 𝚊𝚛𝚎 𝚖𝚒𝚗𝚒𝚖𝚊𝚕 𝚐𝚞𝚒𝚍𝚎𝚕𝚒𝚗𝚎𝚜, 𝚖𝚞𝚝𝚞𝚊𝚕 𝚛𝚎𝚜𝚙𝚎𝚌𝚝 𝚒𝚜 𝚎𝚗𝚌𝚘𝚞𝚛𝚊𝚐𝚎𝚍. 𝙴𝚗𝚓𝚘𝚒 𝚒𝚘𝚞𝚛 𝚝𝚒𝚖𝚎 𝚊𝚗𝚍 𝚖𝚊𝚔𝚎 𝚝𝚑𝚎 𝚖𝚘𝚜𝚝 𝚘𝚏 𝚝𝚑𝚒𝚜 𝚜𝚙𝚊𝚌𝚎! 🚀";
   return (
-    <div className="my-4 px-4 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white text-center rounded-lg shadow-md">
+    <div className="my-4 px-4 py-3 bg-gradient-to-r from-indigo-600 to-blue-500 text-white text-center rounded-lg shadow-md">
       <p className="text-sm font-medium">{guidelines}</p>
     </div>
   );
@@ -223,7 +221,7 @@ const PinnedMessage = () => {
 // ─── GROUP COMPONENT ─────────────────────────────────────────────────────────
 
 const Group = () => {
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState([]); // holds private group messages
   const [newMessage, setNewMessage] = useState("");
   const [username, setUsername] = useState("");
   const [file, setFile] = useState(null);
@@ -280,7 +278,7 @@ const Group = () => {
     }
   };
 
-  // On mount, check for username and group membership
+  // On mount, check for username and group membership.
   useEffect(() => {
     const storedUsername = localStorage.getItem("chatUsername");
     if (storedUsername) {
@@ -406,7 +404,7 @@ const Group = () => {
     [username]
   );
 
-  // Insert new message into "private_messages"
+  // Insert new message into "private_messages" table
   const sendMessage = useCallback(
     async (e) => {
       e.preventDefault();
@@ -453,7 +451,7 @@ const Group = () => {
     });
   }, []);
 
-  // Keep the updated swipe config (smooth swipe, threshold to avoid accidental reply)
+  // Smooth swipe config
   const swipeConfig = useMemo(
     () => ({
       onSwiping: (e, messageId) => {
@@ -473,7 +471,36 @@ const Group = () => {
     []
   );
 
-  // No inline reply icon, single tick logic
+  const renderFilePreview = useCallback((message) => {
+    if (!message.file) return null;
+    return message.file.type.startsWith("image/") ? (
+      <div className="relative mt-1 max-w-xs">
+        <a
+          href={message.file.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block"
+        >
+          <img
+            src={message.file.url}
+            alt="Shared content"
+            className="w-full h-auto rounded-sm border border-white/20"
+            style={{ maxHeight: "120px" }}
+          />
+        </a>
+      </div>
+    ) : (
+      <a
+        href={message.file.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block mt-2 text-blue-400 underline"
+      >
+        {message.file.name}
+      </a>
+    );
+  }, []);
+
   const SafeMessageComponent = ({ message }) => {
     const handleSwiping = (e) => {
       swipeConfig.onSwiping(e, message.id);
@@ -500,7 +527,6 @@ const Group = () => {
       [handlers.ref]
     );
 
-    // Intersection observer to update read status
     useEffect(() => {
       const observer = new IntersectionObserver(
         ([entry]) => {
@@ -582,7 +608,6 @@ const Group = () => {
                     : "4px 4px 10px rgba(0, 0, 0, 0.2), -2px -2px 10px rgba(255, 255, 255, 0.05)",
               }}
             >
-              {/* Original logic for showing entire replied text or 'file' */}
               {message.replyTo && (
                 <div
                   className={`text-xs mb-1 ${
@@ -591,12 +616,10 @@ const Group = () => {
                       : "text-gray-400"
                   }`}
                 >
-                  {messages.find((m) => m.id === message.replyTo)?.text ||
-                    "file"}
+                  {messages.find((m) => m.id === message.replyTo)?.text || "file"}
                 </div>
               )}
               <div>{message.text}</div>
-              {/* File preview if any */}
               {message.file?.url && (
                 <div className="relative mt-1 max-w-xs">
                   {message.file.type.startsWith("image/") ? (
@@ -628,15 +651,12 @@ const Group = () => {
               <div className="flex items-center justify-end gap-1 mt-1">
                 <span
                   className={`text-xs ${
-                    message.sender === username
-                      ? "text-blue-200"
-                      : "text-gray-400"
+                    message.sender === username ? "text-blue-200" : "text-gray-400"
                   }`}
                 >
                   {formatTimestamp(message.timestamp)}
                 </span>
                 <div className="flex items-center">
-                  {/* Single tick if read, else gray tick */}
                   {hasRead ? (
                     <svg
                       width="12"
@@ -689,7 +709,6 @@ const Group = () => {
       }}
     >
       {showUsernameModal && <UsernameModal />}
-      {/* Show the group modal only after a username is set */}
       {!showUsernameModal && showGroupModal && (
         <GroupModal
           onJoin={async (groupPassword) => {
@@ -718,9 +737,10 @@ const Group = () => {
           overscrollBehavior: "contain",
         }}
       >
-        {/* Pinned message at the top */}
+        {/* Pinned prewritten message with updated gradient */}
         <PinnedMessage />
-
+        {/* Divider to separate pinned message from main chat */}
+        <div className="border-t border-gray-700 my-2" />
         {isLoading ? (
           <div className="flex justify-center items-center h-full">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
@@ -743,7 +763,7 @@ const Group = () => {
         )}
       </AnimatePresence>
 
-      {/* BOTTOM MESSAGE SECTION (REVERTED TO ORIGINAL) */}
+      {/* BOTTOM MESSAGE SECTION (ORIGINAL STYLE) */}
       <form
         onSubmit={sendMessage}
         className="p-4 border-t border-gray-700 bg-[#2D3748] safe-area-bottom"
@@ -788,7 +808,7 @@ const Group = () => {
             } text-white p-2 rounded-xl transition-colors`}
             disabled={isUploading}
           >
-            <FaPaperPlane size={20} />
+            <FaArrowAltCircleRight size={20} />
           </button>
         </div>
       </form>
@@ -867,7 +887,6 @@ const joinGroup = async (groupName, groupPassword) => {
 
   const groupId = groupData.id;
 
-  // Check membership count
   const { error: countError, count } = await supabase
     .from("group_memberships")
     .select("*", { count: "exact", head: true })
