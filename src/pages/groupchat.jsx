@@ -215,10 +215,21 @@ const SafeMessageComponent = ({ message, onReply }) => {
   const username = localStorage.getItem("chatUsername");
   const hasRead = (message.read_by || []).includes(username);
 
-  // Update local reaction state on realtime updates
+  // Update reaction state on realtime updates
   useEffect(() => {
     setReaction(message.reactions ? message.reactions[username] : null);
   }, [message.reactions, username]);
+
+  // Compute aggregated reactions from message.reactions (mapping username->emoji)
+  const aggregatedReactions = useMemo(() => {
+    const agg = {};
+    const reactionsObj = message.reactions || {};
+    Object.keys(reactionsObj).forEach((user) => {
+      const emoji = reactionsObj[user];
+      agg[emoji] = (agg[emoji] || 0) + 1;
+    });
+    return agg;
+  }, [message.reactions]);
 
   // Use Framer Motion’s motion value for swipe animation
   const swipeX = useMotionValue(0);
@@ -297,18 +308,18 @@ const SafeMessageComponent = ({ message, onReply }) => {
   useEffect(() => {
     if (showReactionPopup && messageRef.current) {
       const rect = messageRef.current.getBoundingClientRect();
-      const popupWidth = 150; // approximate width of popup
+      const popupWidth = 150; // approximate popup width
       const padding = 8;
       let style = { left: "50%", transform: "translate(-50%, -10px)" };
       if (message.sender === username) {
-        // For outgoing messages
+        // Outgoing: adjust if near right edge
         if (rect.right + popupWidth / 2 > window.innerWidth - padding) {
           style = { right: padding, transform: "translate(0, -10px)" };
         } else {
           style = { left: "50%", transform: "translate(-50%, -10px)" };
         }
       } else {
-        // For incoming messages
+        // Incoming: adjust if near left edge
         if (rect.left - popupWidth / 2 < padding) {
           style = { left: padding, transform: "translate(0, -10px)" };
         } else {
@@ -327,7 +338,9 @@ const SafeMessageComponent = ({ message, onReply }) => {
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          const currentReaders = Array.isArray(message.read_by) ? message.read_by : [];
+          const currentReaders = Array.isArray(message.read_by)
+            ? message.read_by
+            : [];
           if (!currentReaders.includes(username)) {
             supabase
               .from("private_messages")
@@ -354,10 +367,9 @@ const SafeMessageComponent = ({ message, onReply }) => {
     });
   }, []);
 
-  // Reaction option handler (only Copy is available)
+  // Reaction option handler – only "Copy" remains; copying is disabled.
   const handleCopy = (e) => {
     e.stopPropagation();
-    // Prevent copying via long press
     setShowReactionPopup(false);
   };
 
@@ -369,18 +381,18 @@ const SafeMessageComponent = ({ message, onReply }) => {
       delete updatedReactions[username];
       supabase
         .from("private_messages")
-        .update({ reactions: updatedReactions })
+        .update({ reactions: updatedReactions }, { returning: "representation" })
         .eq("id", message.id)
         .then(({ error }) => {
           if (error) console.error("Error removing reaction:", error);
         });
     } else {
-      // Add/update reaction
+      // Add/update reaction (one reaction per user)
       setReaction(emoji);
       const updatedReactions = { ...(message.reactions || {}), [username]: emoji };
       supabase
         .from("private_messages")
-        .update({ reactions: updatedReactions })
+        .update({ reactions: updatedReactions }, { returning: "representation" })
         .eq("id", message.id)
         .then(({ error }) => {
           if (error) console.error("Error updating reaction:", error);
@@ -525,19 +537,25 @@ const SafeMessageComponent = ({ message, onReply }) => {
                 )}
               </div>
             </div>
-            {/* Reaction badge on message bubble */}
-            {reaction && (
+            {/* Aggregated Reaction Badges */}
+            {Object.keys(aggregatedReactions).length > 0 && (
               <div
-                className="absolute bg-gray-900 text-white rounded-full p-1 shadow-md"
+                className="absolute flex gap-1"
                 style={{
                   bottom: -4,
                   right: message.sender === username ? -4 : "auto",
                   left: message.sender === username ? "auto" : -4,
-                  fontSize: "16px",
-                  lineHeight: 1,
                 }}
               >
-                {reaction}
+                {Object.entries(aggregatedReactions).map(([emoji, count]) => (
+                  <div
+                    key={emoji}
+                    className="bg-gray-900 text-white rounded-full px-1 text-xs flex items-center"
+                  >
+                    <span>{emoji}</span>
+                    {count > 1 && <span className="ml-1">{count}</span>}
+                  </div>
+                ))}
               </div>
             )}
             {/* Reaction Popup */}
