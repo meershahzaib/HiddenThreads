@@ -1043,7 +1043,7 @@ const joinGroup = async (groupName, groupPassword) => {
     .from("group_memberships")
     .insert([{ group_id: groupId, user_name: username }]);
   if (joinError) {
-    throw new Error("Error joining group");
+    throw new Error("Error joining group"); 
   }
   localStorage.setItem("private_group_joined", "true");
 };
