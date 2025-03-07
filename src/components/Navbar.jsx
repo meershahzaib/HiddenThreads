@@ -96,6 +96,7 @@ function Navbar() {
                         </div>
                         <NavLink href="/pricing">Pricing</NavLink>
                         <NavLink href="/about">About</NavLink>
+                        <NavLink href="/video-voice">Video/Voice Chat</NavLink>
                         <Link
                             to="/signup"
                             className="ml-4 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-colors duration-200"
@@ -130,6 +131,8 @@ function Navbar() {
                                 <Link to="/resources" className="block px-3 py-2 text-gray-300 hover:text-white">Resources</Link>
                                 <Link to="/pricing" className="block px-3 py-2 text-gray-300 hover:text-white">Pricing</Link>
                                 <Link to="/about" className="block px-3 py-2 text-gray-300 hover:text-white">About</Link>
+                                <Link to="/video-voice" className="block px-3 py-2 text-gray-300 hover:text-white">Video/Voice Chat</Link>
+
                                 <Link to="/signup" className="block px-3 py-2 text-blue-500 hover:text-blue-400">Get Started</Link>
                             </div>
                         </motion.div>
