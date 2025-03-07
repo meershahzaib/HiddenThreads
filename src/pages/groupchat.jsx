@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useMotionValue } from "framer-motion";
 import { FaPaperclip, FaUser, FaArrowAltCircleRight } from "react-icons/fa";
-import { FiCopy, FiCornerDownLeft } from "react-icons/fi";
+import { FiCopy } from "react-icons/fi";
 import { supabase } from "../supabaseClient";
 import { useSwipeable } from "react-swipeable";
 
@@ -215,8 +215,14 @@ const SafeMessageComponent = ({ message, onReply }) => {
   const username = localStorage.getItem("chatUsername");
   const hasRead = (message.read_by || []).includes(username);
 
-  // Swipe configuration (existing behavior)
-  const swipeState = useRef({ id: null, delta: 0 });
+  // Update local reaction state on realtime updates
+  useEffect(() => {
+    setReaction(message.reactions ? message.reactions[username] : null);
+  }, [message.reactions, username]);
+
+  // Use Framer Motion’s motion value for swipe animation
+  const swipeX = useMotionValue(0);
+
   const swipeConfig = useMemo(
     () => ({
       onSwiping: (e, messageId) => {
@@ -224,19 +230,19 @@ const SafeMessageComponent = ({ message, onReply }) => {
           cancelLongPress();
           return;
         }
-        swipeState.current = { id: messageId, delta: e.deltaX };
+        swipeX.set(e.deltaX);
       },
       onSwiped: (e, messageId) => {
         if (Math.abs(e.deltaX) > 70) {
           if (onReply) onReply(messageId);
         }
-        swipeState.current = { id: null, delta: 0 };
+        swipeX.set(0);
       },
       trackMouse: true,
       delta: 20,
       preventDefaultTouchmoveEvent: true,
     }),
-    [onReply]
+    [onReply, swipeX]
   );
   const handlers = useSwipeable({
     onSwiping: (e) => swipeConfig.onSwiping(e, message.id),
@@ -313,6 +319,9 @@ const SafeMessageComponent = ({ message, onReply }) => {
     }
   }, [showReactionPopup, message.sender, username]);
 
+  // Prevent text copying on long press
+  const disableCopyStyle = { userSelect: "none" };
+
   // Mark message as read when visible
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -345,18 +354,10 @@ const SafeMessageComponent = ({ message, onReply }) => {
     });
   }, []);
 
-  // Reaction option handlers
+  // Reaction option handler (only Copy is available)
   const handleCopy = (e) => {
     e.stopPropagation();
-    navigator.clipboard.writeText(message.text).catch((err) =>
-      console.error("Copy failed", err)
-    );
-    setShowReactionPopup(false);
-  };
-
-  const handleReply = (e) => {
-    e.stopPropagation();
-    if (onReply) onReply(message.id);
+    // Prevent copying via long press
     setShowReactionPopup(false);
   };
 
@@ -396,8 +397,16 @@ const SafeMessageComponent = ({ message, onReply }) => {
   };
 
   return (
-    <div className="mb-4 relative" id={`message-${message.id}`} ref={messageRef}>
-      <div className={`text-xs mb-2 px-1 ${message.sender === username ? "text-right" : "text-left"}`}>
+    <div
+      className="mb-4 relative"
+      id={`message-${message.id}`}
+      ref={messageRef}
+      onContextMenu={(e) => e.preventDefault()}
+    >
+      <div
+        className={`text-xs mb-2 px-1 ${message.sender === username ? "text-right" : "text-left"}`}
+        style={disableCopyStyle}
+      >
         <span
           className="px-2 py-1 rounded-full shadow-sm"
           style={{
@@ -422,9 +431,10 @@ const SafeMessageComponent = ({ message, onReply }) => {
           onTouchCancel={handleTouchCancel}
           className="max-w-[80%] relative"
           style={{
-            x: swipeState.current.id === message.id ? swipeState.current.delta : 0,
+            x: swipeX,
             overflow: "visible",
             position: "relative",
+            ...disableCopyStyle,
           }}
         >
           <div
@@ -564,7 +574,7 @@ const SafeMessageComponent = ({ message, onReply }) => {
                   </div>
                   {/* Separator */}
                   <hr className="border-gray-600 my-1" />
-                  {/* Options Row (single line) */}
+                  {/* Options Row (single line: only Copy) */}
                   <div className="options-row flex gap-6 justify-center mt-1">
                     <div
                       onClick={handleCopy}
@@ -572,13 +582,6 @@ const SafeMessageComponent = ({ message, onReply }) => {
                     >
                       <FiCopy size={20} />
                       <span className="text-sm">Copy</span>
-                    </div>
-                    <div
-                      onClick={handleReply}
-                      className="flex items-center gap-1 cursor-pointer text-white hover:text-gray-300"
-                    >
-                      <FiCornerDownLeft size={20} />
-                      <span className="text-sm">Reply</span>
                     </div>
                   </div>
                 </motion.div>
