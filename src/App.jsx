@@ -3,8 +3,7 @@ import Home from './pages/Home';
 import Chat from './pages/Chat';
 import About from './pages/About';
 import Group from './pages/groupchat'; 
-import Video from './pages/video-voice';
-
+import VideoVoicePage from './pages/video-voice';
 function App() {
   return (
     <Router>
@@ -15,11 +14,8 @@ function App() {
             <Route path="/chat" element={<Chat />} />
             <Route path="/about" element={<About />} />
             <Route path="/groupchat" element={<Group />} />
-            <Route path="/video-voice" element={<Video/>} />
-            
-
-            
-            </Routes>
+            <Route path="/video-voice" element={<VideoVoicePage />} />  
+             </Routes>
         </main>
       </div>
     </Router>

@@ -1,159 +1,144 @@
+import React from 'react';
+import { FiVideo, FiPhone } from 'react-icons/fi';
 
-import React, { useEffect, useRef, useState } from "react";
-import Peer from "simple-peer";
-import { supabase } from "../supabaseClient"; // Import your Supabase instance
-
-const Video = ({ currentUser, partnerUser, callId, isCaller }) => {
-  const [peer, setPeer] = useState(null);
-  const [stream, setStream] = useState(null);
-  const [isMuted, setIsMuted] = useState(false);
-  const [isVideoOn, setIsVideoOn] = useState(true);
-
-  const userVideoRef = useRef();
-  const partnerVideoRef = useRef();
-
-  // Subscribe to Supabase real-time signaling
-  useEffect(() => {
-    const channel = supabase.channel(`call-${callId}`);
-    channel.on(
-      "postgres_changes",
-      { event: "*", schema: "public", table: "call_signals", filter: `call_id=eq.${callId}` },
-      (payload) => {
-        if (peer) {
-          peer.signal(payload.new.signal);
-        }
-      }
-    ).subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [callId, peer]);
-
-  // Get user media and initialize peer
-  useEffect(() => {
-    navigator.mediaDevices
-      .getUserMedia({ video: true, audio: true })
-      .then((currentStream) => {
-        setStream(currentStream);
-        if (userVideoRef.current) {
-          userVideoRef.current.srcObject = currentStream;
-        }
-
-        // Initialize peer connection
-        const newPeer = new Peer({
-          initiator: isCaller,
-          trickle: false,
-          stream: currentStream,
-        });
-
-        newPeer.on("signal", (signalData) => {
-          supabase.from("call_signals").insert([
-            { call_id: callId, sender: currentUser, receiver: partnerUser, signal: signalData },
-          ]);
-        });
-
-        newPeer.on("stream", (remoteStream) => {
-          if (partnerVideoRef.current) {
-            partnerVideoRef.current.srcObject = remoteStream;
-          }
-        });
-
-        setPeer(newPeer);
-      })
-      .catch((err) => console.error("Error accessing media devices:", err));
-  }, [isCaller, callId, currentUser, partnerUser]);
-
-  // End Call
-  const endCall = () => {
-    if (peer) peer.destroy();
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-    }
+const VideoVoicePage = () => {
+  const handleVideoChat = () => {
+    console.info('Initiating video chat...');
   };
 
-  // Toggle Audio
-  const toggleMute = () => {
-    if (stream) {
-      stream.getAudioTracks()[0].enabled = isMuted;
-      setIsMuted(!isMuted);
-    }
-  };
-
-  // Toggle Video
-  const toggleVideo = () => {
-    if (stream) {
-      stream.getVideoTracks()[0].enabled = isVideoOn;
-      setIsVideoOn(!isVideoOn);
-    }
+  const handleVoiceChat = () => {
+    console.info('Initiating voice chat...');
   };
 
   return (
-    <div className="video-call-container">
-      <div className="video-wrapper">
-        <video ref={userVideoRef} autoPlay muted className="local-video" />
-        <video ref={partnerVideoRef} autoPlay className="remote-video" />
+    <div className="page-container">
+      <div className="card">
+        <h2 className="title">Connect Now</h2>
+        <div className="button-group">
+          <button className="chat-button video" onClick={handleVideoChat}>
+            <FiVideo className="icon" />
+            <span>Video Call</span>
+          </button>
+          <button className="chat-button voice" onClick={handleVoiceChat}>
+            <FiPhone className="icon" />
+            <span>Voice Call</span>
+          </button>
+        </div>
       </div>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@300;400;500;600;700&display=swap');
 
-      <div className="controls">
-        <button onClick={toggleMute} className="control-btn">
-          {isMuted ? "Unmute" : "Mute"}
-        </button>
-        <button onClick={toggleVideo} className="control-btn">
-          {isVideoOn ? "Hide Video" : "Show Video"}
-        </button>
-        <button onClick={endCall} className="end-call-btn">End Call</button>
-      </div>
-
-      {/* CSS Styling */}
-      <style jsx>{`
-        .video-call-container {
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          background: black;
+        .page-container {
+          background-color: #0E1422;
+          height: 100vh;
           display: flex;
-          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+          padding: 1rem;
+          font-family: 'Comfortaa', sans-serif;
+        }
+
+        .card {
+          background-color: #1A1F2E;
+          border-radius: 24px;
+          padding: 2.5rem;
+          width: 100%;
+          max-width: 480px;
+          text-align: center;
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+        }
+
+        .title {
+          color: #FFFFFF;
+          font-weight: 500;
+          font-size: 1.8rem;
+          margin-bottom: 2.5rem;
+          letter-spacing: 0.5px;
+        }
+
+        .button-group {
+          display: grid;
+          gap: 1.2rem;
+        }
+
+        .chat-button {
+          display: flex;
           align-items: center;
           justify-content: center;
-          z-index: 100;
-        }
-        .video-wrapper {
-          position: relative;
-          width: 80%;
-          max-width: 800px;
-          background: #000;
-        }
-        video {
           width: 100%;
-          border-radius: 8px;
-        }
-        .controls {
-          display: flex;
-          gap: 10px;
-          margin-top: 20px;
-        }
-        .control-btn {
-          padding: 8px 16px;
-          background: #007bff;
-          color: white;
+          padding: 1.2rem;
           border: none;
-          border-radius: 4px;
+          border-radius: 14px;
+          background-color: #252C3F;
+          color: #FFFFFF;
           cursor: pointer;
+          transition: all 0.3s ease;
+          font-size: 1.1rem;
+          gap: 0.8rem;
         }
-        .end-call-btn {
-          padding: 8px 16px;
-          background: red;
-          color: white;
-          border: none;
-          border-radius: 4px;
-          cursor: pointer;
+
+        .chat-button:hover {
+          background-color: #3B82F6;
+          transform: translateY(-2px);
+        }
+
+        .chat-button.video:hover {
+          box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
+        }
+
+        .chat-button.voice:hover {
+          box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
+        }
+
+        .icon {
+          font-size: 1.4rem;
+          color: #8A9BA8;
+        }
+
+        .chat-button:hover .icon {
+          color: #FFFFFF;
+        }
+
+        @media (max-width: 768px) {
+          .card {
+            padding: 2rem;
+            border-radius: 20px;
+          }
+
+          .title {
+            font-size: 1.6rem;
+            margin-bottom: 2rem;
+          }
+
+          .chat-button {
+            padding: 1rem;
+            font-size: 1rem;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .card {
+            padding: 1.5rem;
+            border-radius: 16px;
+          }
+
+          .title {
+            font-size: 1.4rem;
+            margin-bottom: 1.5rem;
+          }
+
+          .chat-button {
+            padding: 0.9rem;
+            border-radius: 12px;
+          }
+
+          .icon {
+            font-size: 1.2rem;
+          }
         }
       `}</style>
     </div>
   );
 };
 
-export default Video;
+export default VideoVoicePage;
