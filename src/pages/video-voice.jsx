@@ -5,6 +5,7 @@ import { supabase } from "../supabaseClient";
 const VideoVoicePage = () => {
   const [showCallOverlay, setShowCallOverlay] = useState(false);
   const [callType, setCallType] = useState(null);
+  // Use stored username; ensure it’s unique per user.
   const username = localStorage.getItem("chatUsername") || "Anonymous";
 
   return (
@@ -12,8 +13,8 @@ const VideoVoicePage = () => {
       <div className="card">
         <h2 className="title">Connect Now</h2>
         <div className="button-group">
-          <button 
-            className="chat-button video" 
+          <button
+            className="chat-button video"
             onClick={() => {
               setCallType("video");
               setShowCallOverlay(true);
@@ -53,23 +54,30 @@ const CallOverlay = ({ callType, username, onClose }) => {
   const peerConnection = useRef(null);
   const channel = useRef(null);
 
+  // For video: video+audio; for voice: audio only.
   const mediaConstraints = {
     audio: true,
     video: callType === "video" ? { facingMode: "user" } : false
   };
 
-  // Cleanup resources
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (peerConnection.current) {
-        peerConnection.current.close();
-      }
-      if (channel.current) {
-        supabase.removeChannel(channel.current);
-      }
-      stopMediaTracks();
+      cleanup();
     };
   }, []);
+
+  const cleanup = () => {
+    if (peerConnection.current) {
+      peerConnection.current.close();
+      peerConnection.current = null;
+    }
+    if (channel.current) {
+      supabase.removeChannel(channel.current);
+      channel.current = null;
+    }
+    stopMediaTracks();
+  };
 
   const stopMediaTracks = () => {
     if (localMediaRef.current?.srcObject) {
@@ -80,120 +88,75 @@ const CallOverlay = ({ callType, username, onClose }) => {
     }
   };
 
-  const initializeCall = async () => {
+  // Waiting user (the one who created the call row) answers an incoming offer.
+  const answerCallForWaiting = async (roomId, offerSdp) => {
     try {
-      setCallStatus("Connecting...");
-      
-      // Get user media
-      const stream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
-      localMediaRef.current.srcObject = stream;
-
-      // Create peer connection
-      peerConnection.current = new RTCPeerConnection({
-        iceServers: [
-          { urls: "stun:stun.l.google.com:19302" },
-          // Add your TURN servers here if needed
-        ]
+      console.log("Waiting user answering offer");
+      setCallStatus("Answering incoming call...");
+      await peerConnection.current.setRemoteDescription({
+        type: "offer",
+        sdp: offerSdp
       });
-
-      // Add local stream tracks
-      stream.getTracks().forEach(track => {
-        peerConnection.current.addTrack(track, stream);
-      });
-
-      // Setup ICE candidate handler
-      peerConnection.current.onicecandidate = async ({ candidate }) => {
-        if (candidate) {
-          await supabase
-            .from("ice_candidates")
-            .insert({
-              room_id: roomId,
-              candidate: JSON.stringify(candidate)
-            });
-        }
-      };
-
-      // Setup remote stream handler
-      peerConnection.current.ontrack = event => {
-        const remoteStream = event.streams[0];
-        remoteMediaRef.current.srcObject = remoteStream;
-      };
-
-      // Create or join room
-      const { data: existingCall, error } = await supabase
+      const answer = await peerConnection.current.createAnswer();
+      await peerConnection.current.setLocalDescription(answer);
+      const { error } = await supabase
         .from("calls")
-        .select("*")
-        .eq("status", "waiting")
-        .limit(1);
-
-      if (existingCall?.length > 0) {
-        await handleExistingCall(existingCall[0]);
-      } else {
-        await createNewCall();
+        .update({ answer: answer.sdp })
+        .eq("room_id", roomId);
+      if (error) {
+        console.error("Error updating call row with answer:", error);
+        setCallStatus("Error sending answer");
+        return;
       }
-    } catch (error) {
-      console.error("Call initialization failed:", error);
+      setCallStatus("Connected");
+    } catch (err) {
+      console.error("Error in answerCallForWaiting:", err);
       setCallStatus("Connection failed");
     }
   };
 
-  const createNewCall = async () => {
-    const newRoomId = crypto.randomUUID();
-    setRoomId(newRoomId);
-    
-    await supabase
-      .from("calls")
-      .insert({ 
-        room_id: newRoomId,
-        status: "waiting",
-        caller: username,
-        type: callType
+  // Joining user sets remote description upon receiving answer.
+  const handleAnswer = async (answerSdp) => {
+    try {
+      console.log("Joining user received answer");
+      await peerConnection.current.setRemoteDescription({
+        type: "answer",
+        sdp: answerSdp
       });
-
-    setupSignalingChannel(newRoomId);
-    setCallStatus("Waiting for peer...");
+      setCallStatus("Connected");
+    } catch (err) {
+      console.error("Error in handleAnswer:", err);
+      setCallStatus("Connection failed");
+    }
   };
 
-  const handleExistingCall = async (existingCall) => {
-    setRoomId(existingCall.room_id);
-    setCallStatus("Connecting to peer...");
-
-    // Create offer
-    const offer = await peerConnection.current.createOffer();
-    await peerConnection.current.setLocalDescription(offer);
-
-    // Update call status
-    await supabase
-      .from("calls")
-      .update({ 
-        status: "active",
-        callee: username,
-        offer: offer.sdp
-      })
-      .eq("room_id", existingCall.room_id);
-
-    // Listen for answers
-    setupSignalingChannel(existingCall.room_id);
-  };
-
+  // Setup realtime signaling channel for both offer/answer and ICE candidates.
   const setupSignalingChannel = (roomId) => {
     channel.current = supabase
       .channel(`room-${roomId}`)
-      .on("postgres_changes", 
-        { 
+      .on(
+        "postgres_changes",
+        {
           event: "UPDATE",
           schema: "public",
           table: "calls",
           filter: `room_id=eq.${roomId}`
         },
         async (payload) => {
+          console.log("Received UPDATE on calls:", payload);
           const { new: callData } = payload;
-          if (callData.answer) {
+          // If I'm the waiting user (i.e. I created the call row) and an offer appears (no answer yet), answer it.
+          if (callData.offer && !callData.answer && callData.caller === username) {
+            await answerCallForWaiting(callData.room_id, callData.offer);
+          }
+          // If I'm the joining user (my username not equal to caller) and answer is received, set remote description.
+          else if (callData.answer && callData.caller !== username) {
             await handleAnswer(callData.answer);
           }
         }
       )
-      .on("postgres_changes",
+      .on(
+        "postgres_changes",
         {
           event: "INSERT",
           schema: "public",
@@ -201,24 +164,117 @@ const CallOverlay = ({ callType, username, onClose }) => {
           filter: `room_id=eq.${roomId}`
         },
         async (payload) => {
+          console.log("Received ICE candidate:", payload);
           const { new: candidateData } = payload;
           if (candidateData.candidate) {
-            await peerConnection.current.addIceCandidate(
-              new RTCIceCandidate(JSON.parse(candidateData.candidate))
-            );
+            try {
+              await peerConnection.current.addIceCandidate(
+                new RTCIceCandidate(JSON.parse(candidateData.candidate))
+              );
+            } catch (e) {
+              console.error("Error adding ICE candidate:", e);
+            }
           }
         }
       )
       .subscribe();
   };
 
-  const handleAnswer = async (answerSdp) => {
-    await peerConnection.current.setRemoteDescription({
-      type: "answer",
-      sdp: answerSdp
-    });
-    setCallStatus("Connected");
+  // If an existing call row (waiting) is found, join it as the caller.
+  const handleExistingCall = async (existingCall) => {
+    setRoomId(existingCall.room_id);
+    setCallStatus("Connecting to peer...");
+    const offer = await peerConnection.current.createOffer();
+    await peerConnection.current.setLocalDescription(offer);
+    const { error } = await supabase
+      .from("calls")
+      .update({
+        status: "active",
+        callee: username,
+        offer: offer.sdp
+      })
+      .eq("room_id", existingCall.room_id);
+    if (error) {
+      console.error("Error updating call row:", error);
+      setCallStatus("Error sending offer");
+      return;
+    }
+    setupSignalingChannel(existingCall.room_id);
   };
+
+  // If no call row exists, create a new call row (waiting user).
+  const createNewCall = async () => {
+    const newRoomId = crypto.randomUUID();
+    setRoomId(newRoomId);
+    const { error } = await supabase.from("calls").insert({
+      room_id: newRoomId,
+      status: "waiting",
+      caller: username,
+      type: callType
+    });
+    if (error) {
+      console.error("Error creating new call:", error);
+      setCallStatus("Error creating call");
+      return;
+    }
+    setupSignalingChannel(newRoomId);
+    setCallStatus("Waiting for peer...");
+  };
+
+  // Main initialization: get local media, create peer connection, then check for existing call.
+  const initializeCall = async () => {
+    try {
+      setCallStatus("Connecting...");
+      const stream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
+      localMediaRef.current.srcObject = stream;
+      peerConnection.current = new RTCPeerConnection({
+        iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+      });
+      stream.getTracks().forEach((track) => {
+        peerConnection.current.addTrack(track, stream);
+      });
+      peerConnection.current.onicecandidate = async ({ candidate }) => {
+        if (candidate) {
+          await supabase.from("ice_candidates").insert({
+            room_id: roomId,
+            candidate: JSON.stringify(candidate)
+          });
+        }
+      };
+      peerConnection.current.ontrack = (event) => {
+        const remoteStream = event.streams[0];
+        remoteMediaRef.current.srcObject = remoteStream;
+      };
+
+      // Check for an existing waiting call.
+      const { data: existingCall, error } = await supabase
+        .from("calls")
+        .select("*")
+        .eq("status", "waiting")
+        .limit(1);
+      if (error) {
+        console.error("Error checking for existing call:", error);
+        setCallStatus("Error checking call status");
+        return;
+      }
+      if (existingCall && existingCall.length > 0) {
+        await handleExistingCall(existingCall[0]);
+      } else {
+        await createNewCall();
+      }
+    } catch (err) {
+      console.error("Call initialization failed:", err);
+      setCallStatus("Connection failed");
+    }
+  };
+
+  // Trigger initializeCall once when overlay mounts
+  useEffect(() => {
+    if (callStatus === "initializing") {
+      initializeCall();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="overlay">
@@ -229,10 +285,9 @@ const CallOverlay = ({ callType, username, onClose }) => {
             <FiX />
           </button>
         </div>
-
         <div className="media-container">
           {callType === "video" && (
-            <video 
+            <video
               ref={localMediaRef}
               autoPlay
               muted
@@ -247,11 +302,10 @@ const CallOverlay = ({ callType, username, onClose }) => {
             className={`remote-media ${callType === "voice" ? "audio-only" : ""}`}
           />
         </div>
-
         <div className="call-controls">
           <p className="status">{callStatus}</p>
           {!callStatus.includes("Connected") && (
-            <button 
+            <button
               className="connect-button"
               onClick={initializeCall}
               disabled={callStatus === "Connecting..."}
@@ -265,8 +319,7 @@ const CallOverlay = ({ callType, username, onClose }) => {
   );
 };
 
-// Styles remain the same as previous version
-// Styles
+// Injected styles
 const styles = `
   .page-container {
     background: #0E1422;
@@ -277,7 +330,6 @@ const styles = `
     padding: 1rem;
     font-family: 'Comfortaa', sans-serif;
   }
-
   .card {
     background: #1A1F2E;
     border-radius: 24px;
@@ -287,18 +339,15 @@ const styles = `
     text-align: center;
     box-shadow: 0 8px 24px rgba(0,0,0,0.2);
   }
-
   .title {
     color: #FFF;
     font-size: 1.8rem;
     margin-bottom: 2rem;
   }
-
   .button-group {
     display: grid;
     gap: 1rem;
   }
-
   .chat-button {
     display: flex;
     align-items: center;
@@ -312,15 +361,12 @@ const styles = `
     cursor: pointer;
     transition: all 0.3s ease;
   }
-
   .chat-button:hover {
     background: #3B82F6;
   }
-
   .icon {
     font-size: 1.4rem;
   }
-
   .overlay {
     position: fixed;
     top: 0;
@@ -333,7 +379,6 @@ const styles = `
     align-items: center;
     z-index: 1000;
   }
-
   .call-container {
     background: #1A1F2E;
     border-radius: 16px;
@@ -341,14 +386,12 @@ const styles = `
     width: 90%;
     max-width: 800px;
   }
-
   .call-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 1.5rem;
   }
-
   .close-button {
     background: none;
     border: none;
@@ -356,12 +399,10 @@ const styles = `
     font-size: 1.5rem;
     cursor: pointer;
   }
-
   .media-container {
     position: relative;
     margin-bottom: 2rem;
   }
-
   .local-video {
     position: absolute;
     top: 1rem;
@@ -370,14 +411,12 @@ const styles = `
     border-radius: 8px;
     border: 2px solid #3B82F6;
   }
-
   .remote-media {
     width: 100%;
     max-height: 60vh;
     border-radius: 12px;
     background: #000;
   }
-
   .audio-only {
     background: #252C3F;
     height: 200px;
@@ -387,16 +426,13 @@ const styles = `
     font-size: 1.2rem;
     color: #3B82F6;
   }
-
   .call-controls {
     text-align: center;
   }
-
   .status {
     color: #FFF;
     margin-bottom: 1rem;
   }
-
   .connect-button {
     background: #3B82F6;
     color: #FFF;
@@ -406,37 +442,31 @@ const styles = `
     cursor: pointer;
     transition: opacity 0.3s ease;
   }
-
   .connect-button:disabled {
     opacity: 0.7;
     cursor: not-allowed;
   }
-
   @media (max-width: 480px) {
     .card {
       padding: 1.5rem;
     }
-
     .title {
       font-size: 1.4rem;
     }
-
     .chat-button {
       padding: 1rem;
       font-size: 1rem;
     }
-
     .call-container {
       padding: 1.5rem;
     }
-
     .remote-media {
       height: 50vh;
     }
   }
 `;
 
-// Inject styles
+// Inject styles into document head
 document.head.insertAdjacentHTML("beforeend", `<style>${styles}</style>`);
 
 export default VideoVoicePage;
