@@ -1,17 +1,11 @@
-import React, {
-  useState,
-  useEffect,
-  useCallback,
-  useMemo,
-  useRef,
-} from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaPaperclip, FaUser, FaArrowAltCircleRight } from "react-icons/fa";
+import { FiCopy, FiCornerDownLeft } from "react-icons/fi";
 import { supabase } from "../supabaseClient";
 import { useSwipeable } from "react-swipeable";
 
-// ─── REPLY PREVIEW COMPONENT (ORIGINAL STYLE) ─────────────────────────────
-
+// ─── REPLY PREVIEW COMPONENT ─────────────────────────────────────────────
 const ReplyPreview = ({ originalMessage, onCancel }) => {
   const previewText =
     originalMessage?.text ||
@@ -69,7 +63,6 @@ const ReplyPreview = ({ originalMessage, onCancel }) => {
 };
 
 // ─── USERNAME MODAL ─────────────────────────────────────────────────────────
-
 const UsernameModal = () => {
   const [tempUsername, setTempUsername] = useState("");
   const [error, setError] = useState("");
@@ -78,21 +71,17 @@ const UsernameModal = () => {
     e.preventDefault();
     const usernameToCheck = tempUsername.trim();
     if (!usernameToCheck) return;
-
     try {
       const { data, error: fetchError } = await supabase
         .from("private_messages")
         .select("sender")
         .eq("sender", usernameToCheck)
         .limit(1);
-
       if (fetchError) throw fetchError;
-
       if (data && data.length > 0) {
         setError("Username is already taken. Please choose another.");
         return;
       }
-
       localStorage.setItem("chatUsername", usernameToCheck);
       await supabase.rpc("set_current_user", { username: usernameToCheck });
       window.location.reload();
@@ -145,11 +134,9 @@ const UsernameModal = () => {
 };
 
 // ─── GROUP MODAL (Password-Only) ───────────────────────────────────────────
-
 const GroupModal = ({ onJoin }) => {
   const [groupPassword, setGroupPassword] = useState("");
   const [error, setError] = useState("");
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     const password = groupPassword.trim();
@@ -163,7 +150,6 @@ const GroupModal = ({ onJoin }) => {
       setError(err.message || "Error joining group");
     }
   };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
       <motion.div
@@ -206,11 +192,10 @@ const GroupModal = ({ onJoin }) => {
   );
 };
 
-// ─── PINNED PREWRITTEN MESSAGE COMPONENT (UPDATED GRADIENT & DIVIDER) ───────────────────────────────────
-
+// ─── PINNED PREWRITTEN MESSAGE COMPONENT ───────────────────────────────────
 const PinnedMessage = () => {
   const guidelines =
-    "📌 𝙶𝚛𝚘𝚞𝚙 𝙶𝚞𝚒𝚍𝚎𝚕𝚒𝚗𝚎𝚜 & 𝙰𝚗𝚗𝚘𝚞𝚗𝚌𝚎𝚖𝚎𝚗𝚝 📌 𝚆𝚎𝚕𝚌𝚘𝚖𝚎! 𝚃𝚑𝚒𝚜 𝚒𝚜 𝚊𝚗 𝚘𝚙𝚎𝚗 𝚊𝚗𝚍 𝚞𝚗𝚛𝚎𝚜𝚝𝚛𝚒𝚌𝚝𝚎𝚍 𝚜𝚙𝚊𝚌𝚎 𝚠𝚑𝚎𝚛𝚎 𝚖𝚎𝚖𝚋𝚎𝚛𝚜 𝚌𝚊𝚗 𝚏𝚛𝚎𝚎𝚕𝚒 𝚒𝚗𝚝𝚎𝚛𝚊𝚌𝚝, 𝚜𝚑𝚊𝚛𝚎, 𝚊𝚗𝚍 𝚎𝚗𝚐𝚊𝚐𝚎 𝚠𝚒𝚝𝚑𝚘𝚞𝚝 𝚌𝚘𝚗𝚌𝚎𝚛𝚗𝚜 𝚊𝚋𝚘𝚞𝚝 𝚎𝚌𝚎𝚜𝚜𝚒𝚟𝚎 𝚖𝚘𝚍𝚎𝚛𝚊𝚝𝚒𝚘𝚗. ✅ 𝙵𝚛𝚎𝚎𝚍𝚘𝚖 𝚘𝚏 𝙴𝚗𝚙𝚛𝚎𝚜𝚜𝚒𝚘𝚗 – 𝙴𝚗𝚐𝚊𝚐𝚎 𝚒𝚗 𝚍𝚒𝚜𝚌𝚞𝚜𝚜𝚒𝚘𝚗𝚜 𝚠𝚒𝚝𝚑𝚘𝚞𝚝 𝚞𝚗𝚗𝚎𝚌𝚎𝚜𝚜𝚊𝚛𝚢 𝚛𝚎𝚜𝚝𝚛𝚒𝚌𝚝𝚒𝚘𝚗𝚜. ✅ 𝚁𝚎𝚕𝚊𝚟𝚎𝚍 𝙴𝚗𝚟𝚒𝚛𝚘𝚗𝚖𝚎𝚗𝚝 – 𝙽𝚘 𝚛𝚒𝚐𝚒𝚍 𝚛𝚞𝚕𝚎𝚜; 𝚎𝚗𝚓𝚘𝚒 𝚒𝚘𝚞𝚛 𝚝𝚒𝚖𝚎 𝚑𝚎𝚛𝚎. ✅ 𝚁𝚎𝚜𝚙𝚎𝚌𝚝 & 𝙲𝚘𝚞𝚛𝚝𝚎𝚜𝚒 – 𝚆𝚑𝚒𝚕𝚎 𝚝𝚑𝚎𝚛𝚎 𝚊𝚛𝚎 𝚖𝚒𝚗𝚒𝚖𝚊𝚕 𝚐𝚞𝚒𝚍𝚎𝚕𝚒𝚗𝚎𝚜, 𝚖𝚞𝚝𝚞𝚊𝚕 𝚛𝚎𝚜𝚙𝚎𝚌𝚝 𝚒𝚜 𝚎𝚗𝚌𝚘𝚞𝚛𝚊𝚐𝚎𝚍. 𝙴𝚗𝚓𝚘𝚒 𝚒𝚘𝚞𝚛 𝚝𝚒𝚖𝚎 𝚊𝚗𝚍 𝚖𝚊𝚔𝚎 𝚝𝚑𝚎 𝚖𝚘𝚜𝚝 𝚘𝚏 𝚝𝚑𝚒𝚜 𝚜𝚙𝚊𝚌𝚎! 🚀";
+    "📌 𝙶𝚛𝚘𝚞𝚙 𝙶𝚞𝚒𝚍𝚎𝚕𝚒𝚗𝚎𝚜 & 𝙰𝚗𝚗𝚘𝚞𝚗𝚌𝚎𝚖𝚎𝚗𝚝 📌 𝚆𝚎𝚕𝚌𝚘𝚖𝚎! 𝚃𝚑𝚒𝚜 𝚒𝚜 𝚊𝚗 𝚘𝚙𝚎𝚗 𝚊𝚗𝚍 𝚞𝚗𝚛𝚎𝚜𝚝𝚛𝚒𝚌𝚝𝚎𝚍 𝚜𝚙𝚊𝚌𝚎 𝚠𝚑𝚎𝚛𝚎 𝚖𝚎𝚖𝚋𝚎𝚛𝚜 𝚌𝚊𝚗 𝚏𝚛𝚎𝚎𝚕𝚒 𝚒𝚗𝚝𝚎𝚛𝚊𝚌𝚝, 𝚜𝚑𝚊𝚛𝚎, 𝚊𝚗𝚍 𝚎𝚗𝚐𝚊𝚐𝚎 𝚠𝚒𝚝𝚑𝚘𝚞𝚝 𝚌𝚘𝚗𝚌𝚎𝚛𝚗𝚜 𝚊𝚋𝚘𝚞𝚝 𝚎𝚌𝚎𝚜𝚜𝚒𝚟𝚎 𝚖𝚘𝚍𝚎𝚛𝚊𝚝𝚒𝚘𝚗. ✅ 𝙵𝚛𝚎𝚎𝚍𝚘𝚖 𝚘𝚏 𝙴𝚗𝚙𝚛𝚎𝚜𝚜𝚒𝚘𝚗 – 𝙴𝚗𝚐𝚊𝚐𝚎 𝚒𝚗 𝚍𝚒𝚜𝚌𝚞𝚜𝚜𝚒𝚘𝚗𝚜 𝚠𝚒𝚝𝚑𝚘𝚞𝚝 𝚞𝚗𝚗𝚎𝚌𝚎𝚜𝚜𝚊𝚛𝚢 𝚛𝚎𝚜𝚝𝚛𝚒𝚌𝚝𝚒𝚘𝚗𝚜. ✅ 𝚁𝚎𝚕𝚊𝚟𝚎𝚍 𝙴𝚗𝚟𝚒𝚛𝚘𝚗𝚖𝚎𝚗𝚝 – 𝙽𝚘 𝚛𝚒𝚐𝚒𝚍 𝚛𝚞𝚕𝚎𝚜; 𝚎𝚗𝚓𝚘 𝚒𝚘𝚞𝚛 𝚝𝚒𝚖𝚎 𝚑𝚎𝚛𝚎. ✅ 𝚁𝚎𝚜𝚙𝚎𝚌𝚝 & 𝙲𝚘𝚞𝚛𝚝𝚎𝚜𝚒 – 𝚆𝚑𝚒𝚕𝚎 𝚝𝚑𝚎𝚛𝚎 𝚊𝚛𝚎 𝚖𝚒𝚗𝚒𝚖𝚊𝚕 𝚐𝚞𝚒𝚍𝚎𝚕𝚒𝚗𝚎𝚜, 𝚖𝚞𝚝𝚞𝚊𝚕 𝚛𝚎𝚜𝚙𝚎𝚌𝚝 𝚒𝚜 𝚎𝚗𝚌𝚘𝚞𝚛𝚊𝚐𝚎𝚍. 𝙴𝚗𝚓𝚘𝚒 𝚒𝚘𝚞𝚛 𝚝𝚒𝚖𝚎 𝚊𝚗𝚍 𝚖𝚊𝚔𝚎 𝚝𝚑𝚎 𝚖𝚘𝚜𝚝 𝚘𝚏 𝚝𝚑𝚒𝚜 𝚜𝚙𝚊𝚌𝚎! 🚀";
   return (
     <div className="my-4 px-4 py-3 bg-gradient-to-r from-indigo-600 to-blue-500 text-white text-center rounded-lg shadow-md">
       <p className="text-sm font-medium">{guidelines}</p>
@@ -218,22 +203,406 @@ const PinnedMessage = () => {
   );
 };
 
-// ─── GROUP COMPONENT ─────────────────────────────────────────────────────────
+// ─── SAFE MESSAGE COMPONENT WITH REACTION POPUP ─────────────────────────
+const SafeMessageComponent = ({ message, onReply }) => {
+  const [showReactionPopup, setShowReactionPopup] = useState(false);
+  const [reaction, setReaction] = useState(
+    message.reactions ? message.reactions[localStorage.getItem("chatUsername")] : null
+  );
+  const [popupStyle, setPopupStyle] = useState({ left: "50%", transform: "translate(-50%, -10px)" });
+  const longPressTimer = useRef(null);
+  const messageRef = useRef();
+  const username = localStorage.getItem("chatUsername");
+  const hasRead = (message.read_by || []).includes(username);
 
+  // Swipe configuration (existing behavior)
+  const swipeState = useRef({ id: null, delta: 0 });
+  const swipeConfig = useMemo(
+    () => ({
+      onSwiping: (e, messageId) => {
+        if (Math.abs(e.deltaX) > 70) {
+          cancelLongPress();
+          return;
+        }
+        swipeState.current = { id: messageId, delta: e.deltaX };
+      },
+      onSwiped: (e, messageId) => {
+        if (Math.abs(e.deltaX) > 70) {
+          if (onReply) onReply(messageId);
+        }
+        swipeState.current = { id: null, delta: 0 };
+      },
+      trackMouse: true,
+      delta: 20,
+      preventDefaultTouchmoveEvent: true,
+    }),
+    [onReply]
+  );
+  const handlers = useSwipeable({
+    onSwiping: (e) => swipeConfig.onSwiping(e, message.id),
+    onSwiped: (e) => swipeConfig.onSwiped(e, message.id),
+    trackMouse: swipeConfig.trackMouse,
+    delta: swipeConfig.delta,
+    preventDefaultTouchmoveEvent: true,
+  });
+
+  // Long press detection for reaction popup
+  const startLongPress = (e) => {
+    e.persist && e.persist();
+    longPressTimer.current = setTimeout(() => {
+      setShowReactionPopup(true);
+    }, 800);
+  };
+
+  const cancelLongPress = (e) => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  // Combined event handlers for long press and swipe
+  const handleMouseDown = (e) => {
+    startLongPress(e);
+    handlers.onMouseDown && handlers.onMouseDown(e);
+  };
+  const handleTouchStart = (e) => {
+    startLongPress(e);
+    handlers.onTouchStart && handlers.onTouchStart(e);
+  };
+  const handleMouseUp = (e) => {
+    cancelLongPress(e);
+    handlers.onMouseUp && handlers.onMouseUp(e);
+  };
+  const handleMouseLeave = (e) => {
+    cancelLongPress(e);
+    handlers.onMouseLeave && handlers.onMouseLeave(e);
+  };
+  const handleTouchEnd = (e) => {
+    cancelLongPress(e);
+    handlers.onTouchEnd && handlers.onTouchEnd(e);
+  };
+  const handleTouchCancel = (e) => {
+    cancelLongPress(e);
+    handlers.onTouchCancel && handlers.onTouchCancel(e);
+  };
+
+  // Ensure popup stays within viewport when open
+  useEffect(() => {
+    if (showReactionPopup && messageRef.current) {
+      const rect = messageRef.current.getBoundingClientRect();
+      const popupWidth = 150; // approximate width of popup
+      const padding = 8;
+      let style = { left: "50%", transform: "translate(-50%, -10px)" };
+      if (message.sender === username) {
+        // For outgoing messages
+        if (rect.right + popupWidth / 2 > window.innerWidth - padding) {
+          style = { right: padding, transform: "translate(0, -10px)" };
+        } else {
+          style = { left: "50%", transform: "translate(-50%, -10px)" };
+        }
+      } else {
+        // For incoming messages
+        if (rect.left - popupWidth / 2 < padding) {
+          style = { left: padding, transform: "translate(0, -10px)" };
+        } else {
+          style = { left: "50%", transform: "translate(-50%, -10px)" };
+        }
+      }
+      setPopupStyle(style);
+    }
+  }, [showReactionPopup, message.sender, username]);
+
+  // Mark message as read when visible
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          const currentReaders = Array.isArray(message.read_by) ? message.read_by : [];
+          if (!currentReaders.includes(username)) {
+            supabase
+              .from("private_messages")
+              .update({ read_by: [...currentReaders, username] })
+              .eq("id", message.id)
+              .then(({ error }) => {
+                if (error) console.error("Error updating read status:", error);
+              });
+          }
+        }
+      },
+      { threshold: 0.1, rootMargin: "0px 0px -50px 0px" }
+    );
+    if (messageRef.current) observer.observe(messageRef.current);
+    return () => {
+      if (messageRef.current) observer.unobserve(messageRef.current);
+    };
+  }, [message.read_by, username, message.id]);
+
+  const formatTimestamp = useCallback((timestamp) => {
+    return new Date(timestamp).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }, []);
+
+  // Reaction option handlers
+  const handleCopy = (e) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(message.text).catch((err) =>
+      console.error("Copy failed", err)
+    );
+    setShowReactionPopup(false);
+  };
+
+  const handleReply = (e) => {
+    e.stopPropagation();
+    if (onReply) onReply(message.id);
+    setShowReactionPopup(false);
+  };
+
+  const handleEmojiClick = (emoji) => {
+    if (reaction === emoji) {
+      // Remove reaction if same emoji is clicked again
+      setReaction(null);
+      const updatedReactions = { ...(message.reactions || {}) };
+      delete updatedReactions[username];
+      supabase
+        .from("private_messages")
+        .update({ reactions: updatedReactions })
+        .eq("id", message.id)
+        .then(({ error }) => {
+          if (error) console.error("Error removing reaction:", error);
+        });
+    } else {
+      // Add/update reaction
+      setReaction(emoji);
+      const updatedReactions = { ...(message.reactions || {}), [username]: emoji };
+      supabase
+        .from("private_messages")
+        .update({ reactions: updatedReactions })
+        .eq("id", message.id)
+        .then(({ error }) => {
+          if (error) console.error("Error updating reaction:", error);
+        });
+    }
+    setShowReactionPopup(false);
+  };
+
+  const handleCustomEmoji = () => {
+    const customEmoji = window.prompt("Enter your custom emoji:");
+    if (customEmoji) {
+      handleEmojiClick(customEmoji);
+    }
+  };
+
+  return (
+    <div className="mb-4 relative" id={`message-${message.id}`} ref={messageRef}>
+      <div className={`text-xs mb-2 px-1 ${message.sender === username ? "text-right" : "text-left"}`}>
+        <span
+          className="px-2 py-1 rounded-full shadow-sm"
+          style={{
+            backgroundColor: "#0e1423",
+            border: "1px solid #465775",
+            backgroundImage: "linear-gradient(90deg, #db7ad7, #8a97fb)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+          }}
+        >
+          {message.sender}
+        </span>
+      </div>
+      <div className={`flex ${message.sender === username ? "justify-end" : "justify-start"}`}>
+        <motion.div
+          {...handlers}
+          onMouseDown={handleMouseDown}
+          onTouchStart={handleTouchStart}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseLeave}
+          onTouchEnd={handleTouchEnd}
+          onTouchCancel={handleTouchCancel}
+          className="max-w-[80%] relative"
+          style={{
+            x: swipeState.current.id === message.id ? swipeState.current.delta : 0,
+            overflow: "visible",
+            position: "relative",
+          }}
+        >
+          <div
+            className="p-2 rounded-lg relative bg-gradient-to-br text-sm"
+            style={{
+              background:
+                message.sender === username
+                  ? "linear-gradient(to bottom right, #3B82F6, rgb(63, 105, 196))"
+                  : "linear-gradient(to bottom right, #374151, #1F2937)",
+              color: message.sender === username ? "white" : "#F3F4F6",
+              boxShadow:
+                message.sender === username
+                  ? "4px 4px 10px rgba(59, 130, 246, 0.2), -2px -2px 10px rgba(255, 255, 255, 0.1)"
+                  : "4px 4px 10px rgba(0, 0, 0, 0.2), -2px -2px 10px rgba(255, 255, 255, 0.05)",
+            }}
+          >
+            {message.replyTo && (
+              <div className={`text-xs mb-1 ${message.sender === username ? "text-blue-200" : "text-gray-400"}`}>
+                {message.replyToText || "file"}
+              </div>
+            )}
+            <div>{message.text}</div>
+            {message.file?.url && (
+              <div className="relative mt-1 max-w-xs">
+                {message.file.type.startsWith("image/") ? (
+                  <a
+                    href={message.file.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block"
+                  >
+                    <img
+                      src={message.file.url}
+                      alt="Shared content"
+                      className="w-full h-auto rounded-sm border border-white/20"
+                      style={{ maxHeight: "120px" }}
+                    />
+                  </a>
+                ) : (
+                  <a
+                    href={message.file.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block mt-2 text-blue-400 underline"
+                  >
+                    {message.file.name}
+                  </a>
+                )}
+              </div>
+            )}
+            <div className="flex items-center justify-end gap-1 mt-1">
+              <span className={`text-xs ${message.sender === username ? "text-blue-200" : "text-gray-400"}`}>
+                {formatTimestamp(message.timestamp)}
+              </span>
+              <div className="flex items-center">
+                {hasRead ? (
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    className="text-black ml-1"
+                  >
+                    <path
+                      d="M20 6L9 17L4 12"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                ) : (
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    className="text-gray-400 ml-1"
+                  >
+                    <path
+                      d="M20 6L9 17L4 12"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                )}
+              </div>
+            </div>
+            {/* Reaction badge on message bubble */}
+            {reaction && (
+              <div
+                className="absolute bg-gray-900 text-white rounded-full p-1 shadow-md"
+                style={{
+                  bottom: -4,
+                  right: message.sender === username ? -4 : "auto",
+                  left: message.sender === username ? "auto" : -4,
+                  fontSize: "16px",
+                  lineHeight: 1,
+                }}
+              >
+                {reaction}
+              </div>
+            )}
+            {/* Reaction Popup */}
+            <AnimatePresence>
+              {showReactionPopup && (
+                <motion.div
+                  className="reaction-popup flex flex-col p-3 rounded-lg bg-gray-800 shadow-xl"
+                  initial={{ scale: 0.8, opacity: 0, y: -10 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  exit={{ scale: 0.8, opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                  style={{
+                    position: "absolute",
+                    bottom: "100%",
+                    zIndex: 10,
+                    maxWidth: "90vw",
+                    ...popupStyle,
+                  }}
+                >
+                  {/* Emoji Row */}
+                  <div className="emoji-row flex gap-2 mb-2 justify-center">
+                    {["👍", "❤️", "😂", "😮", "😢", "👏"].map((emoji, index) => (
+                      <div
+                        key={index}
+                        onClick={() => handleEmojiClick(emoji)}
+                        className="cursor-pointer text-xl"
+                      >
+                        {emoji}
+                      </div>
+                    ))}
+                    <div onClick={handleCustomEmoji} className="cursor-pointer text-xl">
+                      ➕
+                    </div>
+                  </div>
+                  {/* Separator */}
+                  <hr className="border-gray-600 my-1" />
+                  {/* Options Row (single line) */}
+                  <div className="options-row flex gap-6 justify-center mt-1">
+                    <div
+                      onClick={handleCopy}
+                      className="flex items-center gap-1 cursor-pointer text-white hover:text-gray-300"
+                    >
+                      <FiCopy size={20} />
+                      <span className="text-sm">Copy</span>
+                    </div>
+                    <div
+                      onClick={handleReply}
+                      className="flex items-center gap-1 cursor-pointer text-white hover:text-gray-300"
+                    >
+                      <FiCornerDownLeft size={20} />
+                      <span className="text-sm">Reply</span>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </motion.div>
+      </div>
+    </div>
+  );
+};
+
+// ─── GROUP COMPONENT ─────────────────────────────────────────────────────────
 const Group = () => {
-  const [messages, setMessages] = useState([]); // holds private group messages
+  const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [username, setUsername] = useState("");
   const [file, setFile] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
   const [replyTo, setReplyTo] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [swipeState, setSwipeState] = useState({ id: null, delta: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [lastSentMessageId, setLastSentMessageId] = useState(null);
   const [showUsernameModal, setShowUsernameModal] = useState(false);
-
-  // For this private group, the group is fixed as "Private Group"
   const [group, setGroup] = useState(null);
   const [showGroupModal, setShowGroupModal] = useState(false);
 
@@ -260,7 +629,7 @@ const Group = () => {
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
-  // Fetch messages from "private_messages" table
+  // Fetch messages from Supabase
   const fetchMessages = async () => {
     if (!group) return;
     setIsLoading(true);
@@ -278,7 +647,6 @@ const Group = () => {
     }
   };
 
-  // On mount, check for username and group membership.
   useEffect(() => {
     const storedUsername = localStorage.getItem("chatUsername");
     if (storedUsername) {
@@ -305,10 +673,8 @@ const Group = () => {
     }
   }, []);
 
-  // Subscribe to realtime changes on "private_messages" table
   useEffect(() => {
     if (!group) return;
-
     const channel = supabase
       .channel("realtime-private-messages")
       .on(
@@ -323,10 +689,8 @@ const Group = () => {
         }
       )
       .subscribe();
-
     channelRef.current = channel;
     fetchMessages();
-
     return () => {
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
@@ -404,7 +768,6 @@ const Group = () => {
     [username]
   );
 
-  // Insert new message into "private_messages" table
   const sendMessage = useCallback(
     async (e) => {
       e.preventDefault();
@@ -444,261 +807,6 @@ const Group = () => {
     [newMessage, file, isUploading, uploadFile, username, replyTo, group]
   );
 
-  const formatTimestamp = useCallback((timestamp) => {
-    return new Date(timestamp).toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  }, []);
-
-  // Smooth swipe config
-  const swipeConfig = useMemo(
-    () => ({
-      onSwiping: (e, messageId) => {
-        if (Math.abs(e.deltaX) > 70) return;
-        setSwipeState({ id: messageId, delta: e.deltaX });
-      },
-      onSwiped: (e, messageId) => {
-        if (Math.abs(e.deltaX) > 70) {
-          setReplyTo(messageId);
-        }
-        setSwipeState({ id: null, delta: 0 });
-      },
-      trackMouse: true,
-      delta: 20,
-      preventDefaultTouchmoveEvent: true,
-    }),
-    []
-  );
-
-  const renderFilePreview = useCallback((message) => {
-    if (!message.file) return null;
-    return message.file.type.startsWith("image/") ? (
-      <div className="relative mt-1 max-w-xs">
-        <a
-          href={message.file.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="block"
-        >
-          <img
-            src={message.file.url}
-            alt="Shared content"
-            className="w-full h-auto rounded-sm border border-white/20"
-            style={{ maxHeight: "120px" }}
-          />
-        </a>
-      </div>
-    ) : (
-      <a
-        href={message.file.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="block mt-2 text-blue-400 underline"
-      >
-        {message.file.name}
-      </a>
-    );
-  }, []);
-
-  const SafeMessageComponent = ({ message }) => {
-    const handleSwiping = (e) => {
-      swipeConfig.onSwiping(e, message.id);
-    };
-
-    const handlers = useSwipeable({
-      onSwiping: handleSwiping,
-      onSwiped: (e) => {
-        swipeConfig.onSwiped(e, message.id);
-      },
-      trackMouse: swipeConfig.trackMouse,
-      delta: swipeConfig.delta,
-      preventDefaultTouchmoveEvent: true,
-    });
-
-    const messageRef = useRef();
-    const hasRead = (message.read_by || []).includes(username);
-
-    const setRefs = useCallback(
-      (node) => {
-        handlers.ref(node);
-        messageRef.current = node;
-      },
-      [handlers.ref]
-    );
-
-    useEffect(() => {
-      const observer = new IntersectionObserver(
-        ([entry]) => {
-          if (entry.isIntersecting) {
-            const currentReaders = Array.isArray(message.read_by)
-              ? message.read_by
-              : [];
-            if (!currentReaders.includes(username)) {
-              supabase
-                .from("private_messages")
-                .update({ read_by: [...currentReaders, username] })
-                .eq("id", message.id)
-                .then(({ error }) => {
-                  if (error)
-                    console.error("Error updating read status:", error);
-                });
-            }
-          }
-        },
-        { threshold: 0.1, rootMargin: "0px 0px -50px 0px" }
-      );
-      if (messageRef.current) observer.observe(messageRef.current);
-      return () => {
-        if (messageRef.current) observer.unobserve(messageRef.current);
-      };
-    }, [message.read_by, username, message.id]);
-
-    return (
-      <div className="mb-4" id={`message-${message.id}`}>
-        <div
-          className={`text-xs mb-2 px-1 ${
-            message.sender === username ? "text-right" : "text-left"
-          }`}
-        >
-          <span
-            className="px-2 py-1 rounded-full shadow-sm"
-            style={{
-              backgroundColor: "#0e1423",
-              border: "1px solid #465775",
-              backgroundImage: "linear-gradient(90deg, #db7ad7, #8a97fb)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-            }}
-          >
-            {message.sender}
-          </span>
-        </div>
-        <div
-          className={`flex ${
-            message.sender === username ? "justify-end" : "justify-start"
-          }`}
-        >
-          <motion.div
-            {...handlers}
-            ref={setRefs}
-            className="max-w-[80%] relative"
-            style={{
-              x: swipeState.id === message.id ? swipeState.delta : 0,
-              overflowX: "hidden",
-            }}
-            onMouseDown={handlers.onMouseDown}
-            onMouseUp={handlers.onMouseUp}
-            onMouseLeave={handlers.onMouseLeave}
-            onTouchStart={handlers.onTouchStart}
-            onTouchEnd={handlers.onTouchEnd}
-            onTouchCancel={handlers.onTouchCancel}
-          >
-            <div
-              className="p-2 rounded-lg relative bg-gradient-to-br text-sm"
-              style={{
-                background:
-                  message.sender === username
-                    ? "linear-gradient(to bottom right, #3B82F6, rgb(63, 105, 196))"
-                    : "linear-gradient(to bottom right, #374151, #1F2937)",
-                color: message.sender === username ? "white" : "#F3F4F6",
-                boxShadow:
-                  message.sender === username
-                    ? "4px 4px 10px rgba(59, 130, 246, 0.2), -2px -2px 10px rgba(255, 255, 255, 0.1)"
-                    : "4px 4px 10px rgba(0, 0, 0, 0.2), -2px -2px 10px rgba(255, 255, 255, 0.05)",
-              }}
-            >
-              {message.replyTo && (
-                <div
-                  className={`text-xs mb-1 ${
-                    message.sender === username
-                      ? "text-blue-200"
-                      : "text-gray-400"
-                  }`}
-                >
-                  {messages.find((m) => m.id === message.replyTo)?.text || "file"}
-                </div>
-              )}
-              <div>{message.text}</div>
-              {message.file?.url && (
-                <div className="relative mt-1 max-w-xs">
-                  {message.file.type.startsWith("image/") ? (
-                    <a
-                      href={message.file.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block"
-                    >
-                      <img
-                        src={message.file.url}
-                        alt="Shared content"
-                        className="w-full h-auto rounded-sm border border-white/20"
-                        style={{ maxHeight: "120px" }}
-                      />
-                    </a>
-                  ) : (
-                    <a
-                      href={message.file.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block mt-2 text-blue-400 underline"
-                    >
-                      {message.file.name}
-                    </a>
-                  )}
-                </div>
-              )}
-              <div className="flex items-center justify-end gap-1 mt-1">
-                <span
-                  className={`text-xs ${
-                    message.sender === username ? "text-blue-200" : "text-gray-400"
-                  }`}
-                >
-                  {formatTimestamp(message.timestamp)}
-                </span>
-                <div className="flex items-center">
-                  {hasRead ? (
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      className="text-black ml-1"
-                    >
-                      <path
-                        d="M20 6L9 17L4 12"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  ) : (
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      className="text-gray-400 ml-1"
-                    >
-                      <path
-                        d="M20 6L9 17L4 12"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  )}
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      </div>
-    );
-  };
-
   return (
     <div
       className="fixed inset-0 flex flex-col bg-[#172133] overflow-hidden"
@@ -737,9 +845,7 @@ const Group = () => {
           overscrollBehavior: "contain",
         }}
       >
-        {/* Pinned prewritten message with updated gradient */}
         <PinnedMessage />
-        {/* Divider to separate pinned message from main chat */}
         <div className="border-t border-gray-700 my-2" />
         {isLoading ? (
           <div className="flex justify-center items-center h-full">
@@ -747,13 +853,16 @@ const Group = () => {
           </div>
         ) : (
           messages.map((message) => (
-            <SafeMessageComponent key={message.id} message={message} />
+            <SafeMessageComponent
+              key={message.id}
+              message={message}
+              onReply={(id) => setReplyTo(id)}
+            />
           ))
         )}
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Reply preview (unchanged from original styling) */}
       <AnimatePresence>
         {replyTo && (
           <ReplyPreview
@@ -763,7 +872,6 @@ const Group = () => {
         )}
       </AnimatePresence>
 
-      {/* BOTTOM MESSAGE SECTION (ORIGINAL STYLE) */}
       <form
         onSubmit={sendMessage}
         className="p-4 border-t border-gray-700 bg-[#2D3748] safe-area-bottom"
@@ -870,23 +978,19 @@ const Group = () => {
 };
 
 // ─── HELPER: JOIN GROUP FUNCTION ──────────────────────────────────────────
-
 const joinGroup = async (groupName, groupPassword) => {
   let { data: groupData, error } = await supabase
     .from("groups")
     .select("*")
     .eq("name", groupName)
     .single();
-
   if (!groupData) {
     throw new Error("Group does not exist");
   }
   if (groupData.password !== groupPassword) {
     throw new Error("Incorrect group password");
   }
-
   const groupId = groupData.id;
-
   const { error: countError, count } = await supabase
     .from("group_memberships")
     .select("*", { count: "exact", head: true })
@@ -897,7 +1001,6 @@ const joinGroup = async (groupName, groupPassword) => {
   if (count >= 20) {
     throw new Error("This group has reached the maximum number of users.");
   }
-
   const username = localStorage.getItem("chatUsername");
   const { data: existingMembership } = await supabase
     .from("group_memberships")
@@ -905,12 +1008,10 @@ const joinGroup = async (groupName, groupPassword) => {
     .eq("group_id", groupId)
     .eq("user_name", username)
     .maybeSingle();
-
   if (existingMembership) {
     localStorage.setItem("private_group_joined", "true");
     return;
   }
-
   const { error: joinError } = await supabase
     .from("group_memberships")
     .insert([{ group_id: groupId, user_name: username }]);
