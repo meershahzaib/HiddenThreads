@@ -195,7 +195,7 @@ const GroupModal = ({ onJoin }) => {
 // ─── PINNED PREWRITTEN MESSAGE COMPONENT ───────────────────────────────────
 const PinnedMessage = () => {
   const guidelines =
-    "📌 𝙶𝚛𝚘𝚞𝚙 𝙶𝚞𝚒𝚍𝚎𝚕𝚒𝚗𝚎𝚜 & 𝙰𝚗𝚗𝚘𝚞𝚗𝚌𝚎𝚖𝚎𝚗𝚝 📌 𝚆𝚎𝚕𝚌𝚘𝚖𝚎! 𝚃𝚑𝚒𝚜 𝚒𝚜 𝚊𝚗 𝚘𝚙𝚎𝚗 𝚊𝚗𝚍 𝚞𝚗𝚛𝚎𝚜𝚝𝚛𝚒𝚌𝚝𝚎𝚍 𝚜𝚙𝚊𝚌𝚎 𝚠𝚑𝚎𝚛𝚎 𝚖𝚎𝚖𝚋𝚎𝚛𝚜 𝚌𝚊𝚗 𝚏𝚛𝚎𝚎𝚕𝚒 𝚒𝚗𝚝𝚎𝚛𝚊𝚌𝚝, 𝚜𝚑𝚊𝚛𝚎, 𝚊𝚗𝚍 𝚎𝚗𝚐𝚊𝚐𝚎 𝚠𝚒𝚝𝚑𝚘𝚞𝚝 𝚌𝚘𝚗𝚌𝚎𝚛𝚗𝚜 𝚊𝚋𝚘𝚞𝚝 𝚎𝚌𝚎𝚜𝚜𝚒𝚟𝚎 𝚖𝚘𝚍𝚎𝚛𝚊𝚝𝚒𝚘𝚗. ✅ 𝙵𝚛𝚎𝚎𝚍𝚘𝚖 𝚘𝚏 𝙴𝚗𝚙𝚛𝚎𝚜𝚜𝚒𝚘𝚗 – 𝙴𝚗𝚐𝚊𝚐𝚎 𝚒𝚗 𝚍𝚒𝚜𝚌𝚞𝚜𝚜𝚒𝚘𝚗𝚜 𝚠𝚒𝚝𝚑𝚘𝚞𝚝 𝚞𝚗𝚗𝚎𝚌𝚎𝚜𝚜𝚊𝚛𝚢 𝚛𝚎𝚜𝚝𝚛𝚒𝚌𝚝𝚒𝚘𝚗𝚜. ✅ 𝚁𝚎𝚕𝚊𝚟𝚎𝚍 𝙴𝚗𝚟𝚒𝚛𝚘𝚗𝚖𝚎𝚗𝚝 – 𝙽𝚘 𝚛𝚒𝚐𝚒𝚍 𝚛𝚞𝚕𝚎𝚜; 𝚎𝚗𝚓𝚘 𝚒𝚘𝚞𝚛 𝚝𝚒𝚖𝚎 𝚑𝚎𝚛𝚎. ✅ 𝚁𝚎𝚜𝚙𝚎𝚌𝚝 & 𝙲𝚘𝚞𝚛𝚝𝚎𝚜𝚒 – 𝚆𝚑𝚒𝚕𝚎 𝚝𝚑𝚎𝚛𝚎 𝚊𝚛𝚎 𝚖𝚒𝚗𝚒𝚖𝚊𝚕 𝚐𝚞𝚒𝚍𝚎𝚕𝚒𝚗𝚎𝚜, 𝚖𝚞𝚝𝚞𝚊𝚕 𝚛𝚎𝚜𝚙𝚎𝚌𝚝 𝚒𝚜 𝚎𝚗𝚌𝚘𝚞𝚛𝚊𝚐𝚎𝚍. 𝙴𝚗𝚓𝚘𝚒 𝚒𝚘𝚞𝚛 𝚝𝚒𝚖𝚎 𝚊𝚗𝚍 𝚖𝚊𝚔𝚎 𝚝𝚑𝚎 𝚖𝚘𝚜𝚝 𝚘𝚏 𝚝𝚑𝚒𝚜 𝚜𝚙𝚊𝚌𝚎! 🚀";
+    "📌Group Guidelines & Announcement Welcome!📌 This is an open space for members to interact, share, and engage freely with minimal moderation. ✅ Open Interaction – Participate in discussions without unnecessary restrictions. ✅ Respectful Communication – Maintain courtesy and mutual respect in all exchanges. ✅ Flexible Environment – Enjoy a relaxed setting with simple guidelines. Make the most of this collaborative space! 🚀";
   return (
     <div className="my-4 px-4 py-3 bg-gradient-to-r from-indigo-600 to-blue-500 text-white text-center rounded-lg shadow-md">
       <p className="text-sm font-medium">{guidelines}</p>
@@ -363,10 +363,15 @@ const SafeMessageComponent = ({ message, onReply, allMessages }) => {
     });
   }, []);
 
-  // Reaction option handler – only "Copy" remains (copying disabled)
+  // Reaction option handler – now copy the message text when "Copy" is clicked.
   const handleCopy = (e) => {
     e.stopPropagation();
-    setShowReactionPopup(false);
+    navigator.clipboard.writeText(message.text)
+      .then(() => setShowReactionPopup(false))
+      .catch((err) => {
+        console.error("Copy failed", err);
+        setShowReactionPopup(false);
+      });
   };
 
   const handleEmojiClick = (emoji) => {
@@ -402,7 +407,7 @@ const SafeMessageComponent = ({ message, onReply, allMessages }) => {
     }
   };
 
-  // For reply preview inside message bubble: show the replied message text.
+  // For reply preview inside the message bubble: show the replied message text.
   const replyPreview =
     message.replyTo && allMessages
       ? allMessages.find((m) => m.id === message.replyTo)?.text || "file"
