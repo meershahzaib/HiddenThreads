@@ -471,4 +471,4 @@ const styles = `
 
 document.head.insertAdjacentHTML("beforeend", `<style>${styles}</style>`);
 
-export default VideoVoicePage;g
+export default VideoVoicePage;
