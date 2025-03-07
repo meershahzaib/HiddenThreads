@@ -195,7 +195,7 @@ const GroupModal = ({ onJoin }) => {
 // ─── PINNED PREWRITTEN MESSAGE COMPONENT ───────────────────────────────────
 const PinnedMessage = () => {
   const guidelines =
-    "📌Group Guidelines & Announcement Welcome!📌 This is an open space for members to interact, share, and engage freely with minimal moderation. ✅ Open Interaction – Participate in discussions without unnecessary restrictions. ✅ Respectful Communication – Maintain courtesy and mutual respect in all exchanges. ✅ Flexible Environment – Enjoy a relaxed setting with simple guidelines. Make the most of this collaborative space! 🚀";
+    "📌Group Guidelines📌 Welcome! Engage openly with minimal moderation. ✅ Share freely – No unnecessary restrictions. ✅ Respect others – Courtesy is key. Enjoy the space! 🚀";
   return (
     <div className="my-4 px-4 py-3 bg-gradient-to-r from-indigo-600 to-blue-500 text-white text-center rounded-lg shadow-md">
       <p className="text-sm font-medium">{guidelines}</p>
