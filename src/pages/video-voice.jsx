@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { FiVideo, FiPhone, FiX } from "react-icons/fi";
 import { supabase } from "../supabaseClient";
+import { v4 as uuidv4 } from 'uuid';
 
 const VideoVoicePage = () => {
   const [showCallOverlay, setShowCallOverlay] = useState(false);
@@ -45,22 +46,25 @@ const VideoVoicePage = () => {
   );
 };
 
+const isValidUUID = uuid => {
+  const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return regex.test(uuid);
+};
+
 const CallOverlay = ({ callType, username, onClose }) => {
   const [callStatus, setCallStatus] = useState("initializing");
-  const [roomId, setRoomId] = useState("");
   const [isCaller, setIsCaller] = useState(false);
   const localMediaRef = useRef(null);
   const remoteMediaRef = useRef(null);
   const peerConnection = useRef(null);
   const channel = useRef(null);
   const iceCandidateBuffer = useRef([]);
-
+  const roomId = useRef('');
   const mediaConstraints = {
     audio: true,
     video: callType === "video" ? { facingMode: "user" } : false
   };
 
-  // Cleanup resources
   useEffect(() => {
     return () => {
       if (peerConnection.current) {
@@ -86,27 +90,19 @@ const CallOverlay = ({ callType, username, onClose }) => {
     try {
       setCallStatus("Connecting...");
       
-      // Get user media
       const stream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
       localMediaRef.current.srcObject = stream;
 
-      // Create peer connection
       peerConnection.current = new RTCPeerConnection({
         iceServers: [
           { urls: "stun:stun.l.google.com:19302" },
-          // Add TURN servers here if needed
+          // Add TURN servers here
         ]
       });
 
-      // Add local stream tracks
-      stream.getTracks().forEach(track => {
-        peerConnection.current.addTrack(track, stream);
-      });
-
-      // Setup ICE candidate handler
       peerConnection.current.onicecandidate = ({ candidate }) => {
         if (candidate) {
-          if (roomId) {
+          if (isValidUUID(roomId.current)) {
             sendIceCandidate(candidate);
           } else {
             iceCandidateBuffer.current.push(candidate);
@@ -114,14 +110,12 @@ const CallOverlay = ({ callType, username, onClose }) => {
         }
       };
 
-      // Setup remote stream handler
       peerConnection.current.ontrack = event => {
         const remoteStream = event.streams[0];
         remoteMediaRef.current.srcObject = remoteStream;
         setCallStatus("Connected");
       };
 
-      // Check for existing calls
       const { data: existingCalls, error } = await supabase
         .from("calls")
         .select("*")
@@ -141,13 +135,18 @@ const CallOverlay = ({ callType, username, onClose }) => {
 
   const sendIceCandidate = async (candidate) => {
     try {
+      if (!isValidUUID(roomId.current)) {
+        console.error('Invalid room ID when sending ICE candidate');
+        return;
+      }
+
       const { error } = await supabase
         .from("ice_candidates")
         .insert({
-          room_id: roomId,
+          room_id: roomId.current,
           candidate: candidate.toJSON()
         });
-      
+
       if (error) throw error;
     } catch (error) {
       console.error("Failed to send ICE candidate:", error);
@@ -155,62 +154,70 @@ const CallOverlay = ({ callType, username, onClose }) => {
   };
 
   const createNewCall = async () => {
-    const newRoomId = crypto.randomUUID();
-    setRoomId(newRoomId);
-    setIsCaller(false);
-    
-    const { error } = await supabase
-      .from("calls")
-      .insert({ 
-        room_id: newRoomId,
-        status: "waiting",
-        type: callType,
-        caller: username
-      });
+    try {
+      const newRoomId = uuidv4();
+      roomId.current = newRoomId;
+      setIsCaller(false);
 
-    if (error) {
+      const { error } = await supabase
+        .from("calls")
+        .insert({ 
+          id: newRoomId,
+          status: "waiting",
+          type: callType,
+          caller: username
+        });
+
+      if (error) throw error;
+
+      setupSignalingChannel(newRoomId);
+      setCallStatus("Waiting for peer...");
+      flushIceCandidates();
+    } catch (error) {
       console.error("Failed to create call:", error);
-      return;
+      setCallStatus("Failed to create call");
     }
-
-    setupSignalingChannel(newRoomId);
-    setCallStatus("Waiting for peer...");
-    flushIceCandidates();
   };
 
   const flushIceCandidates = () => {
     iceCandidateBuffer.current.forEach(candidate => {
-      sendIceCandidate(candidate);
+      if (isValidUUID(roomId.current)) {
+        sendIceCandidate(candidate);
+      }
     });
     iceCandidateBuffer.current = [];
   };
 
   const handleExistingCall = async (existingCall) => {
-    setRoomId(existingCall.room_id);
-    setIsCaller(true);
-    setCallStatus("Connecting to peer...");
+    try {
+      if (!isValidUUID(existingCall.id)) {
+        throw new Error('Invalid existing call ID');
+      }
 
-    // Create offer
-    const offer = await peerConnection.current.createOffer();
-    await peerConnection.current.setLocalDescription(offer);
+      roomId.current = existingCall.id;
+      setIsCaller(true);
+      setCallStatus("Connecting to peer...");
 
-    // Update call status
-    const { error } = await supabase
-      .from("calls")
-      .update({ 
-        status: "negotiating",
-        offer: offer.sdp,
-        callee: username
-      })
-      .eq("room_id", existingCall.room_id);
+      const offer = await peerConnection.current.createOffer();
+      await peerConnection.current.setLocalDescription(offer);
 
-    if (error) {
-      console.error("Failed to update call:", error);
-      return;
+      const { error } = await supabase
+        .from("calls")
+        .update({ 
+          status: "negotiating",
+          offer: offer.sdp,
+          callee: username
+        })
+        .eq("id", existingCall.id);
+
+      if (error) throw error;
+
+      setupSignalingChannel(existingCall.id);
+      flushIceCandidates();
+    } catch (error) {
+      console.error("Failed to handle existing call:", error);
+      setCallStatus("Connection failed");
     }
-
-    setupSignalingChannel(existingCall.room_id);
-    flushIceCandidates();
   };
 
   const setupSignalingChannel = (roomId) => {
@@ -221,7 +228,7 @@ const CallOverlay = ({ callType, username, onClose }) => {
           event: "UPDATE",
           schema: "public",
           table: "calls",
-          filter: `room_id=eq.${roomId}`
+          filter: `id=eq.${roomId}`
         },
         async (payload) => {
           const { new: callData } = payload;
@@ -269,7 +276,7 @@ const CallOverlay = ({ callType, username, onClose }) => {
           answer: answer.sdp,
           status: "active"
         })
-        .eq("room_id", roomId);
+        .eq("id", roomId.current);
 
       if (error) throw error;
     } catch (error) {
@@ -335,7 +342,7 @@ const CallOverlay = ({ callType, username, onClose }) => {
   );
 };
 
-// Styles remain the same as previous version
+// Add your CSS styles here
 const styles = `
   .page-container {
     background: #0E1422;
