@@ -204,7 +204,7 @@ const PinnedMessage = () => {
 };
 
 // ─── SAFE MESSAGE COMPONENT WITH REACTION POPUP ─────────────────────────
-const SafeMessageComponent = ({ message, onReply }) => {
+const SafeMessageComponent = ({ message, onReply, allMessages }) => {
   const [showReactionPopup, setShowReactionPopup] = useState(false);
   const [reaction, setReaction] = useState(
     message.reactions ? message.reactions[localStorage.getItem("chatUsername")] : null
@@ -220,7 +220,7 @@ const SafeMessageComponent = ({ message, onReply }) => {
     setReaction(message.reactions ? message.reactions[username] : null);
   }, [message.reactions, username]);
 
-  // Compute aggregated reactions from message.reactions (mapping username->emoji)
+  // Compute aggregated reactions
   const aggregatedReactions = useMemo(() => {
     const agg = {};
     const reactionsObj = message.reactions || {};
@@ -308,18 +308,16 @@ const SafeMessageComponent = ({ message, onReply }) => {
   useEffect(() => {
     if (showReactionPopup && messageRef.current) {
       const rect = messageRef.current.getBoundingClientRect();
-      const popupWidth = 150; // approximate popup width
+      const popupWidth = 150;
       const padding = 8;
       let style = { left: "50%", transform: "translate(-50%, -10px)" };
       if (message.sender === username) {
-        // Outgoing: adjust if near right edge
         if (rect.right + popupWidth / 2 > window.innerWidth - padding) {
           style = { right: padding, transform: "translate(0, -10px)" };
         } else {
           style = { left: "50%", transform: "translate(-50%, -10px)" };
         }
       } else {
-        // Incoming: adjust if near left edge
         if (rect.left - popupWidth / 2 < padding) {
           style = { left: padding, transform: "translate(0, -10px)" };
         } else {
@@ -338,9 +336,7 @@ const SafeMessageComponent = ({ message, onReply }) => {
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          const currentReaders = Array.isArray(message.read_by)
-            ? message.read_by
-            : [];
+          const currentReaders = Array.isArray(message.read_by) ? message.read_by : [];
           if (!currentReaders.includes(username)) {
             supabase
               .from("private_messages")
@@ -367,7 +363,7 @@ const SafeMessageComponent = ({ message, onReply }) => {
     });
   }, []);
 
-  // Reaction option handler – only "Copy" remains; copying is disabled.
+  // Reaction option handler – only "Copy" remains (copying disabled)
   const handleCopy = (e) => {
     e.stopPropagation();
     setShowReactionPopup(false);
@@ -375,7 +371,6 @@ const SafeMessageComponent = ({ message, onReply }) => {
 
   const handleEmojiClick = (emoji) => {
     if (reaction === emoji) {
-      // Remove reaction if same emoji is clicked again
       setReaction(null);
       const updatedReactions = { ...(message.reactions || {}) };
       delete updatedReactions[username];
@@ -387,7 +382,6 @@ const SafeMessageComponent = ({ message, onReply }) => {
           if (error) console.error("Error removing reaction:", error);
         });
     } else {
-      // Add/update reaction (one reaction per user)
       setReaction(emoji);
       const updatedReactions = { ...(message.reactions || {}), [username]: emoji };
       supabase
@@ -407,6 +401,12 @@ const SafeMessageComponent = ({ message, onReply }) => {
       handleEmojiClick(customEmoji);
     }
   };
+
+  // For reply preview inside message bubble: show the replied message text.
+  const replyPreview =
+    message.replyTo && allMessages
+      ? allMessages.find((m) => m.id === message.replyTo)?.text || "file"
+      : null;
 
   return (
     <div
@@ -465,7 +465,7 @@ const SafeMessageComponent = ({ message, onReply }) => {
           >
             {message.replyTo && (
               <div className={`text-xs mb-1 ${message.sender === username ? "text-blue-200" : "text-gray-400"}`}>
-                {message.replyToText || "file"}
+                {replyPreview}
               </div>
             )}
             <div>{message.text}</div>
@@ -878,6 +878,7 @@ const Group = () => {
               key={message.id}
               message={message}
               onReply={(id) => setReplyTo(id)}
+              allMessages={messages}
             />
           ))
         )}
