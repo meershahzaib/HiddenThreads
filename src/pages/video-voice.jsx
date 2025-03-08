@@ -261,8 +261,12 @@ const CallOverlay = ({ action, username, initialRoomId, roomPassword, onClose })
           const { new: callData } = payload;
           if (callData.answer && callData.status === "active") {
             console.log("Received answer SDP:", callData.answer);
-            if (answerReceivedRef.current) {
-              console.log("Answer already processed; ignoring duplicate.");
+            // Check if connection is already stable or remoteDescription exists.
+            if (
+              peerConnection.current.signalingState === "stable" ||
+              peerConnection.current.remoteDescription
+            ) {
+              console.log("Remote description already set or connection stable; ignoring duplicate answer.");
               return;
             }
             await handleRemoteAnswer(callData.answer);
@@ -418,11 +422,9 @@ const CallOverlay = ({ action, username, initialRoomId, roomPassword, onClose })
 
   const handleRemoteAnswer = async (answerSdp) => {
     try {
-      if (
-        peerConnection.current.remoteDescription &&
-        peerConnection.current.remoteDescription.type === "answer"
-      ) {
-        console.log("Remote description already set; ignoring duplicate answer.");
+      // Check if remote description is already set or if the signaling state is stable.
+      if (peerConnection.current.remoteDescription || peerConnection.current.signalingState === "stable") {
+        console.log("Remote description already set or connection stable; ignoring duplicate answer.");
         return;
       }
       console.log("Received answer SDP:", answerSdp);
@@ -453,7 +455,7 @@ const CallOverlay = ({ action, username, initialRoomId, roomPassword, onClose })
     }
   };
 
-  // Swap the positions by toggling isSwapped.
+  // Swap positions by toggling isSwapped.
   const handleSwap = () => {
     console.log("Swapping video positions");
     setIsSwapped((prev) => !prev);
