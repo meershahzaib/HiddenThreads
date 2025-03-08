@@ -165,6 +165,7 @@ const CallOverlay = ({ action, username, initialRoomId, roomPassword, onClose })
   const roomIdRef = useRef("");
   const iceCandidatesQueue = useRef([]);
 
+  // Use fixed constraints with front camera.
   const mediaConstraints = { audio: true, video: { facingMode: "user" } };
 
   useEffect(() => {
@@ -450,7 +451,7 @@ const CallOverlay = ({ action, username, initialRoomId, roomPassword, onClose })
     }
   };
 
-  // Toggle the swapped state (to swap main and overlay video)
+  // Toggle the swapped state to switch the position of the local and remote videos.
   const handleSwap = () => setIsSwapped((prev) => !prev);
 
   const cleanupCall = () => {
@@ -475,8 +476,6 @@ const CallOverlay = ({ action, username, initialRoomId, roomPassword, onClose })
     onClose();
   };
 
-  // In our layout, if not swapped: remote video is full container and local video is small overlay (clickable to swap).
-  // If swapped: local video is full container and remote video is small overlay.
   return (
     <div className="overlay">
       <div className="call-container">
@@ -499,7 +498,7 @@ const CallOverlay = ({ action, username, initialRoomId, roomPassword, onClose })
         <div className="media-container">
           {isSwapped ? (
             <>
-              {/* Main: local video, Overlay: remote video */}
+              {/* Main video: local stream; Overlay: remote stream */}
               <video
                 ref={localMediaRef}
                 autoPlay
@@ -518,7 +517,7 @@ const CallOverlay = ({ action, username, initialRoomId, roomPassword, onClose })
             </>
           ) : (
             <>
-              {/* Main: remote video, Overlay: local video */}
+              {/* Main video: remote stream; Overlay: local stream */}
               <video
                 ref={remoteMediaRef}
                 autoPlay
@@ -694,7 +693,7 @@ const styles = `
     margin: 0;
     font-size: 0.85rem;
   }
-  /* Increase the media container height; adjusted from 80vh to 60vh */
+  /* Media container with adjusted height */
   .media-container {
     position: relative;
     margin-bottom: 2rem;
