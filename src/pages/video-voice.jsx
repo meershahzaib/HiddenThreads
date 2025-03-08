@@ -156,22 +156,25 @@ const CallOverlay = ({ action, username, initialRoomId, roomPassword, onClose })
   // Flag to avoid duplicate answer processing.
   const answerReceivedRef = useRef(false);
 
-  // Refs for media elements and connection objects.
+  // Refs for video elements and connection objects.
   const localMediaRef = useRef(null);
   const remoteMediaRef = useRef(null);
   const peerConnection = useRef(null);
   const localStream = useRef(null);
+  // Instead of assigning remote video directly to the ref's element,
+  // we store the remote stream in its own ref.
+  const remoteStreamRef = useRef(new MediaStream());
   const channelRef = useRef(null);
   const roomIdRef = useRef("");
   const iceCandidatesQueue = useRef([]);
 
-  // Use fixed constraints with front camera.
+  // Fixed media constraints (using front camera for local)
   const mediaConstraints = { audio: true, video: { facingMode: "user" } };
 
   useEffect(() => {
     const initialize = async () => {
       try {
-        // Create a new RTCPeerConnection.
+        // Create RTCPeerConnection.
         peerConnection.current = new RTCPeerConnection({
           iceServers: [
             { urls: "stun:stun.l.google.com:19302" },
@@ -214,11 +217,12 @@ const CallOverlay = ({ action, username, initialRoomId, roomPassword, onClose })
       }
     };
     pc.ontrack = (event) => {
-      // When a track arrives, add it to the video stream.
-      if (!remoteMediaRef.current.srcObject) {
-        remoteMediaRef.current.srcObject = new MediaStream();
+      // Add remote tracks to remoteStreamRef.
+      remoteStreamRef.current.addTrack(event.track);
+      // Update the remote video element if it exists.
+      if (remoteMediaRef.current) {
+        remoteMediaRef.current.srcObject = remoteStreamRef.current;
       }
-      remoteMediaRef.current.srcObject.addTrack(event.track);
       setCallStatus("Connected");
     };
     pc.onsignalingstatechange = () => {
@@ -231,6 +235,7 @@ const CallOverlay = ({ action, username, initialRoomId, roomPassword, onClose })
   const setupLocalMedia = async () => {
     try {
       localStream.current = await navigator.mediaDevices.getUserMedia(mediaConstraints);
+      // If the local video element is mounted, assign the stream.
       if (localMediaRef.current) {
         localMediaRef.current.srcObject = localStream.current;
       }
@@ -451,8 +456,11 @@ const CallOverlay = ({ action, username, initialRoomId, roomPassword, onClose })
     }
   };
 
-  // Toggle the swapped state to switch the position of the local and remote videos.
-  const handleSwap = () => setIsSwapped((prev) => !prev);
+  // Swap the positions by toggling isSwapped.
+  const handleSwap = () => {
+    console.log("Swapping video positions");
+    setIsSwapped((prev) => !prev);
+  };
 
   const cleanupCall = () => {
     if (localStream.current) {
@@ -500,15 +508,27 @@ const CallOverlay = ({ action, username, initialRoomId, roomPassword, onClose })
             <>
               {/* Main video: local stream; Overlay: remote stream */}
               <video
-                ref={localMediaRef}
+                key="local-main"
+                ref={(el) => {
+                  localMediaRef.current = el;
+                  if (el && localStream.current) {
+                    el.srcObject = localStream.current;
+                  }
+                }}
                 autoPlay
                 muted
                 playsInline
                 className="main-video"
               />
-              <div className="overlay-video" onClick={handleSwap}>
+              <div key="remote-overlay" className="overlay-video" onClick={handleSwap}>
                 <video
-                  ref={remoteMediaRef}
+                  key="remote-video"
+                  ref={(el) => {
+                    remoteMediaRef.current = el;
+                    if (el && remoteStreamRef.current) {
+                      el.srcObject = remoteStreamRef.current;
+                    }
+                  }}
                   autoPlay
                   playsInline
                   className="small-video"
@@ -519,14 +539,26 @@ const CallOverlay = ({ action, username, initialRoomId, roomPassword, onClose })
             <>
               {/* Main video: remote stream; Overlay: local stream */}
               <video
-                ref={remoteMediaRef}
+                key="remote-main"
+                ref={(el) => {
+                  remoteMediaRef.current = el;
+                  if (el && remoteStreamRef.current) {
+                    el.srcObject = remoteStreamRef.current;
+                  }
+                }}
                 autoPlay
                 playsInline
                 className="main-video"
               />
-              <div className="overlay-video" onClick={handleSwap}>
+              <div key="local-overlay" className="overlay-video" onClick={handleSwap}>
                 <video
-                  ref={localMediaRef}
+                  key="local-video"
+                  ref={(el) => {
+                    localMediaRef.current = el;
+                    if (el && localStream.current) {
+                      el.srcObject = localStream.current;
+                    }
+                  }}
                   autoPlay
                   muted
                   playsInline
@@ -720,6 +752,10 @@ const styles = `
     border-radius: 8px;
     overflow: hidden;
     cursor: pointer;
+  }
+  /* Ensure clicks on the video element pass to the container */
+  .overlay-video video {
+    pointer-events: none;
   }
   .small-video {
     width: 100%;
