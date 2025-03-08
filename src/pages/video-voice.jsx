@@ -2,57 +2,142 @@ import React, { useState, useRef, useEffect } from "react";
 import { FiVideo, FiX, FiMic, FiMicOff, FiVideoOff, FiPhone } from "react-icons/fi";
 import { supabase } from "../supabaseClient";
 
-// Generate a 6-digit room ID as a string.
+// Helper: Generate a random 6-digit room ID as a string.
 const generateRoomId = () => {
   return (Math.floor(Math.random() * 900000) + 100000).toString();
 };
 
-// Validate that the room ID is exactly 6 digits.
+// Helper: Validate that a room ID is exactly 6 digits.
 const isValidRoomId = (id) => /^\d{6}$/.test(id);
+
+/* Professional Input Modal Component */
+const InputModal = ({ title, fields, onSubmit, onCancel }) => {
+  return (
+    <div className="modal-overlay">
+      <div className="modal-card">
+        <h3 className="modal-title">{title}</h3>
+        {fields.map((field) => (
+          <div className="modal-field" key={field.name}>
+            <label className="modal-label">{field.label}</label>
+            <input
+              className="modal-input"
+              type={field.type || "text"}
+              placeholder={field.placeholder}
+              value={field.value}
+              onChange={field.onChange}
+            />
+          </div>
+        ))}
+        <div className="modal-buttons">
+          <button className="modal-button modal-submit" onClick={onSubmit}>
+            Submit
+          </button>
+          <button className="modal-button modal-cancel" onClick={onCancel}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const VideoVoicePage = () => {
   const [showCallOverlay, setShowCallOverlay] = useState(false);
   const [action, setAction] = useState(""); // "start" or "join"
   const [callRoomId, setCallRoomId] = useState("");
   const [callRoomPassword, setCallRoomPassword] = useState("");
+  const [showModal, setShowModal] = useState(false);
+  const [modalType, setModalType] = useState(""); // "start" or "join"
+  const [inputRoomId, setInputRoomId] = useState("");
+  const [inputRoomPassword, setInputRoomPassword] = useState("");
   const username = localStorage.getItem("chatUsername") || "Anonymous";
 
-  // For video calls only.
+  // Open modal for start: only need password.
   const handleStartCall = () => {
-    const roomPass = window.prompt("Enter a room password for your call:");
-    if (!roomPass) return;
-    const newRoomId = generateRoomId();
-    // Save trimmed values
-    setCallRoomId(newRoomId.trim());
-    setCallRoomPassword(roomPass.trim());
-    setAction("start");
+    setModalType("start");
+    setInputRoomPassword("");
+    setShowModal(true);
+  };
+
+  // Open modal for join: need room ID and password.
+  const handleJoinCall = () => {
+    setModalType("join");
+    setInputRoomId("");
+    setInputRoomPassword("");
+    setShowModal(true);
+  };
+
+  // Called when modal is submitted.
+  const handleModalSubmit = () => {
+    if (modalType === "start") {
+      // For starting a call, generate a room ID and use the entered password.
+      const newRoomId = generateRoomId();
+      setCallRoomId(newRoomId.trim());
+      setCallRoomPassword(inputRoomPassword.trim());
+      setAction("start");
+    } else if (modalType === "join") {
+      setCallRoomId(inputRoomId.trim());
+      setCallRoomPassword(inputRoomPassword.trim());
+      setAction("join");
+    }
+    setShowModal(false);
     setShowCallOverlay(true);
   };
 
-  const handleJoinCall = () => {
-    const roomIdInput = window.prompt("Enter the Room ID (6 digits):");
-    if (!roomIdInput) return;
-    const roomPassInput = window.prompt("Enter the Room Password:");
-    if (!roomPassInput) return;
-    setCallRoomId(roomIdInput.trim());
-    setCallRoomPassword(roomPassInput.trim());
-    setAction("join");
-    setShowCallOverlay(true);
+  const handleModalCancel = () => {
+    setShowModal(false);
   };
 
   return (
-    <div className="page-container">
-      <div className="card">
-        <h2 className="title">Connect Now</h2>
-        <div className="button-group">
-          <button className="chat-button video" onClick={handleStartCall}>
-            <FiVideo className="icon" /> Start Video Chat
-          </button>
-          <button className="chat-button video" onClick={handleJoinCall}>
-            <FiVideo className="icon" /> Join Video Chat
-          </button>
+    <>
+      <div className="page-container">
+        <div className="card">
+          <h2 className="title">Connect Now</h2>
+          <div className="button-group">
+            <button className="chat-button video" onClick={handleStartCall}>
+              <FiVideo className="icon" /> Start Video Chat
+            </button>
+            <button className="chat-button video" onClick={handleJoinCall}>
+              <FiVideo className="icon" /> Join Video Chat
+            </button>
+          </div>
         </div>
       </div>
+      {showModal && (
+        <InputModal
+          title={modalType === "start" ? "Start Video Chat" : "Join Video Chat"}
+          fields={
+            modalType === "start"
+              ? [
+                  {
+                    name: "password",
+                    label: "Room Password",
+                    placeholder: "Enter room password",
+                    value: inputRoomPassword,
+                    onChange: (e) => setInputRoomPassword(e.target.value),
+                  },
+                ]
+              : [
+                  {
+                    name: "roomId",
+                    label: "Room ID",
+                    placeholder: "Enter 6-digit Room ID",
+                    value: inputRoomId,
+                    onChange: (e) => setInputRoomId(e.target.value),
+                  },
+                  {
+                    name: "password",
+                    label: "Room Password",
+                    placeholder: "Enter room password",
+                    value: inputRoomPassword,
+                    onChange: (e) => setInputRoomPassword(e.target.value),
+                  },
+                ]
+          }
+          onSubmit={handleModalSubmit}
+          onCancel={handleModalCancel}
+        />
+      )}
       {showCallOverlay && (
         <CallOverlay
           action={action}
@@ -62,7 +147,7 @@ const VideoVoicePage = () => {
           onClose={() => setShowCallOverlay(false)}
         />
       )}
-    </div>
+    </>
   );
 };
 
@@ -72,7 +157,7 @@ const CallOverlay = ({ action, username, initialRoomId, roomPassword, onClose })
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [videoEnabled, setVideoEnabled] = useState(true);
 
-  // Refs for media and connection objects.
+  // Refs for media elements and connection objects.
   const localMediaRef = useRef(null);
   const remoteMediaRef = useRef(null);
   const peerConnection = useRef(null);
@@ -86,7 +171,7 @@ const CallOverlay = ({ action, username, initialRoomId, roomPassword, onClose })
   useEffect(() => {
     const initialize = async () => {
       try {
-        // Create a new RTCPeerConnection.
+        // Create RTCPeerConnection.
         peerConnection.current = new RTCPeerConnection({
           iceServers: [
             { urls: "stun:stun.l.google.com:19302" },
@@ -96,7 +181,6 @@ const CallOverlay = ({ action, username, initialRoomId, roomPassword, onClose })
         });
         setupPeerConnectionListeners();
         await setupLocalMedia();
-        // Decide based on action.
         if (action === "start") {
           roomIdRef.current = initialRoomId;
           setDisplayRoomId(initialRoomId);
@@ -172,7 +256,9 @@ const CallOverlay = ({ action, username, initialRoomId, roomPassword, onClose })
         },
         async (payload) => {
           const { new: callData } = payload;
+          // When joining, expect answer; when starting, expect offer.
           if (callData.answer && callData.status === "active") {
+            console.log("Received answer SDP:", callData.answer);
             await handleRemoteAnswer(callData.answer);
           }
           if (callData.offer && callData.status === "negotiating") {
@@ -319,16 +405,19 @@ const CallOverlay = ({ action, username, initialRoomId, roomPassword, onClose })
       setCallStatus("Answer sent, establishing connection...");
       processIceCandidateQueue();
     } catch (error) {
+      console.error("Error in handleRemoteOffer:", error);
       setCallStatus("Failed to process offer");
     }
   };
 
   const handleRemoteAnswer = async (answerSdp) => {
     try {
+      console.log("Received answer SDP:", answerSdp);
       await peerConnection.current.setRemoteDescription({ type: "answer", sdp: answerSdp });
       setCallStatus("Answer received, establishing connection...");
       processIceCandidateQueue();
     } catch (error) {
+      console.error("Error in handleRemoteAnswer:", error);
       setCallStatus("Failed to process answer");
     }
   };
@@ -442,8 +531,9 @@ const CallOverlay = ({ action, username, initialRoomId, roomPassword, onClose })
   );
 };
 
-// Restore original styling.
+// CSS styles (restored original styling and added modal styles)
 const styles = `
+  /* Main page styling */
   .page-container {
     background: #0E1422;
     min-height: 100vh;
@@ -496,6 +586,7 @@ const styles = `
   .icon {
     font-size: 1.4rem;
   }
+  /* Overlay and call container */
   .overlay {
     position: fixed;
     top: 0;
@@ -660,6 +751,79 @@ const styles = `
     .call-container { padding: 1rem; }
     .local-video { width: 80px; height: 60px; }
     .control-button { width: 40px; height: 40px; font-size: 1.1rem; }
+  }
+  /* Modal styles */
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1100;
+  }
+  .modal-card {
+    background: #1A1F2E;
+    border-radius: 16px;
+    padding: 2rem;
+    width: 90%;
+    max-width: 400px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    color: #FFF;
+    font-family: 'Comfortaa', sans-serif;
+  }
+  .modal-title {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    font-size: 1.5rem;
+    text-align: center;
+  }
+  .modal-field {
+    margin-bottom: 1rem;
+  }
+  .modal-label {
+    display: block;
+    margin-bottom: 0.3rem;
+    font-size: 1rem;
+  }
+  .modal-input {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+    border: 1px solid #444;
+    background: #252C3F;
+    color: #FFF;
+    font-size: 1rem;
+  }
+  .modal-buttons {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 1rem;
+  }
+  .modal-button {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.3s ease;
+  }
+  .modal-submit {
+    background: #3B82F6;
+    color: #FFF;
+  }
+  .modal-submit:hover {
+    background: #2563EB;
+  }
+  .modal-cancel {
+    background: #EF4444;
+    color: #FFF;
+  }
+  .modal-cancel:hover {
+    background: #DC2626;
   }
 `;
 
