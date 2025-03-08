@@ -17,12 +17,12 @@ const VideoVoicePage = () => {
       <div className="card">
         <h2 className="title">Connect Now</h2>
         <div className="button-group">
+          {/* Start Video Chat: prompt for room password; generate new room ID */}
           <button
             className="chat-button video"
             onClick={() => {
               const roomPass = window.prompt("Enter a room password for your call:");
               if (roomPass) {
-                // Generate a new room id for starting a call
                 const newRoomId = uuidv4();
                 setCallRoomId(newRoomId);
                 setCallRoomPassword(roomPass);
@@ -35,11 +35,12 @@ const VideoVoicePage = () => {
             <FiVideo className="icon" />
             Start Video Chat
           </button>
+          {/* Join Video Chat: prompt for room ID and password */}
           <button
             className="chat-button video"
             onClick={() => {
-              const roomIdInput = window.prompt("Enter the room ID:");
-              const roomPassInput = window.prompt("Enter the room password:");
+              const roomIdInput = window.prompt("Enter the Room ID:");
+              const roomPassInput = window.prompt("Enter the Room Password:");
               if (roomIdInput && roomPassInput) {
                 setCallRoomId(roomIdInput);
                 setCallRoomPassword(roomPassInput);
@@ -52,6 +53,7 @@ const VideoVoicePage = () => {
             <FiVideo className="icon" />
             Join Video Chat
           </button>
+          {/* Start Voice Chat */}
           <button
             className="chat-button voice"
             onClick={() => {
@@ -69,11 +71,12 @@ const VideoVoicePage = () => {
             <FiPhone className="icon" />
             Start Voice Chat
           </button>
+          {/* Join Voice Chat */}
           <button
             className="chat-button voice"
             onClick={() => {
-              const roomIdInput = window.prompt("Enter the room ID:");
-              const roomPassInput = window.prompt("Enter the room password:");
+              const roomIdInput = window.prompt("Enter the Room ID:");
+              const roomPassInput = window.prompt("Enter the Room Password:");
               if (roomIdInput && roomPassInput) {
                 setCallRoomId(roomIdInput);
                 setCallRoomPassword(roomPassInput);
@@ -176,7 +179,7 @@ const CallOverlay = ({
     iceCandidateBuffer.current = [];
   };
 
-  // For joining a call: verify provided room credentials.
+  // JOIN: Look up existing call row using provided credentials.
   const joinCall = async () => {
     roomId.current = initialRoomId;
     setCallStatus("Connecting to peer...");
@@ -199,13 +202,12 @@ const CallOverlay = ({
     }
   };
 
-  // For starting a call: generate a new room id (fresh) and display it.
+  // START: Create a new call row using a fresh room ID.
   const createNewCall = async () => {
     try {
-      // Always generate a new room id regardless of initialRoomId to avoid duplicates.
       const newRoomId = uuidv4();
       roomId.current = newRoomId;
-      setDisplayRoomId(newRoomId); // Show the room id on screen
+      setDisplayRoomId(newRoomId);
       setIsCaller(false);
       const { error } = await supabase.from("calls").insert({
         id: newRoomId,
@@ -224,7 +226,7 @@ const CallOverlay = ({
     }
   };
 
-  // For joining: update the call row with an offer.
+  // For joining: create an offer and update the call row.
   const handleExistingCall = async (existingCall) => {
     try {
       if (!isValidUUID(existingCall.id)) {
@@ -252,7 +254,7 @@ const CallOverlay = ({
     }
   };
 
-  // Realtime signaling channel
+  // Setup realtime channel for signaling.
   const setupSignalingChannel = (room) => {
     channel.current = supabase
       .channel(`room-${room}`)
@@ -335,7 +337,7 @@ const CallOverlay = ({
     }
   };
 
-  // Main initialization – based on action ("start" vs "join")
+  // Main initialization – differs based on action.
   const initializeCall = async () => {
     try {
       setCallStatus("Connecting...");
@@ -389,6 +391,7 @@ const CallOverlay = ({
             <FiX />
           </button>
         </div>
+        {/* Show the room ID if the user is starting the call */}
         {action === "start" && displayRoomId && (
           <p className="room-id" style={{ marginBottom: "1rem", color: "#FFF" }}>
             Your Room ID: {displayRoomId}
