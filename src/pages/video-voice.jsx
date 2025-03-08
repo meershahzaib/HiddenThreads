@@ -23,6 +23,7 @@ const VideoVoicePage = () => {
             onClick={() => {
               const roomPass = window.prompt("Enter a room password for your call:");
               if (roomPass) {
+                // Always generate a fresh room ID when starting
                 const newRoomId = uuidv4();
                 setCallRoomId(newRoomId);
                 setCallRoomPassword(roomPass);
@@ -126,8 +127,7 @@ const CallOverlay = ({
   const peerConnection = useRef(null);
   const channel = useRef(null);
   const iceCandidateBuffer = useRef([]);
-  // Buffer for incoming ICE candidates until remote description is set.
-  const incomingIceBuffer = useRef([]);
+  const incomingIceBuffer = useRef([]); // Buffer for incoming ICE candidates until remote description is set.
   const roomId = useRef("");
   const mediaConstraints = {
     audio: true,
@@ -192,7 +192,7 @@ const CallOverlay = ({
     incomingIceBuffer.current = [];
   };
 
-  // For joining: verify room ID format, then query for an existing call row.
+  // JOIN: Check that the provided room ID is valid, then query for an existing call row.
   const joinCall = async () => {
     if (!isValidUUID(initialRoomId)) {
       setCallStatus("Invalid room ID format.");
@@ -219,10 +219,10 @@ const CallOverlay = ({
     }
   };
 
-  // For starting: always generate a fresh room id.
+  // START: Create a new call row using a fresh room ID.
   const createNewCall = async () => {
     try {
-      const newRoomId = uuidv4(); // Generate new ID
+      const newRoomId = uuidv4();
       roomId.current = newRoomId;
       setDisplayRoomId(newRoomId);
       setIsCaller(false);
@@ -243,7 +243,7 @@ const CallOverlay = ({
     }
   };
 
-  // For joining: update the call row with an offer.
+  // For joining: create an offer and update the call row.
   const handleExistingCall = async (existingCall) => {
     try {
       if (!isValidUUID(existingCall.id)) {
@@ -381,7 +381,7 @@ const CallOverlay = ({
           }
         }
       };
-      // Modified ontrack: accumulate incoming tracks into a MediaStream.
+      // Accumulate remote tracks in a MediaStream.
       peerConnection.current.ontrack = (event) => {
         if (!remoteMediaRef.current.srcObject) {
           remoteMediaRef.current.srcObject = new MediaStream();
