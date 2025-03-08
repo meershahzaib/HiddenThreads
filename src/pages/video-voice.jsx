@@ -2,15 +2,13 @@ import React, { useState, useRef, useEffect } from "react";
 import { FiVideo, FiX, FiMic, FiMicOff, FiVideoOff, FiPhone } from "react-icons/fi";
 import { supabase } from "../supabaseClient";
 
-// Helper: Generate a random 6-digit room ID as a string.
-const generateRoomId = () => {
-  return (Math.floor(Math.random() * 900000) + 100000).toString();
-};
+// Generate a random 6-digit room ID as a string.
+const generateRoomId = () => (Math.floor(Math.random() * 900000) + 100000).toString();
 
-// Helper: Validate that a room ID is exactly 6 digits.
+// Validate that a room ID is exactly 6 digits.
 const isValidRoomId = (id) => /^\d{6}$/.test(id);
 
-/* Professional Input Modal Component */
+/* Custom Modal Component for Professional Input */
 const InputModal = ({ title, fields, onSubmit, onCancel }) => {
   return (
     <div className="modal-overlay">
@@ -20,11 +18,11 @@ const InputModal = ({ title, fields, onSubmit, onCancel }) => {
           <div className="modal-field" key={field.name}>
             <label className="modal-label">{field.label}</label>
             <input
-              className="modal-input"
               type={field.type || "text"}
               placeholder={field.placeholder}
               value={field.value}
               onChange={field.onChange}
+              className="modal-input"
             />
           </div>
         ))}
@@ -52,14 +50,14 @@ const VideoVoicePage = () => {
   const [inputRoomPassword, setInputRoomPassword] = useState("");
   const username = localStorage.getItem("chatUsername") || "Anonymous";
 
-  // Open modal for start: only need password.
+  // Open modal for starting a call (password only).
   const handleStartCall = () => {
     setModalType("start");
     setInputRoomPassword("");
     setShowModal(true);
   };
 
-  // Open modal for join: need room ID and password.
+  // Open modal for joining a call (room ID and password).
   const handleJoinCall = () => {
     setModalType("join");
     setInputRoomId("");
@@ -67,10 +65,8 @@ const VideoVoicePage = () => {
     setShowModal(true);
   };
 
-  // Called when modal is submitted.
   const handleModalSubmit = () => {
     if (modalType === "start") {
-      // For starting a call, generate a room ID and use the entered password.
       const newRoomId = generateRoomId();
       setCallRoomId(newRoomId.trim());
       setCallRoomPassword(inputRoomPassword.trim());
@@ -84,9 +80,7 @@ const VideoVoicePage = () => {
     setShowCallOverlay(true);
   };
 
-  const handleModalCancel = () => {
-    setShowModal(false);
-  };
+  const handleModalCancel = () => setShowModal(false);
 
   return (
     <>
@@ -156,8 +150,10 @@ const CallOverlay = ({ action, username, initialRoomId, roomPassword, onClose })
   const [displayRoomId, setDisplayRoomId] = useState("");
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [videoEnabled, setVideoEnabled] = useState(true);
+  // Ref to prevent processing duplicate answers.
+  const answerReceivedRef = useRef(false);
 
-  // Refs for media elements and connection objects.
+  // Refs for media and connection objects.
   const localMediaRef = useRef(null);
   const remoteMediaRef = useRef(null);
   const peerConnection = useRef(null);
@@ -171,7 +167,7 @@ const CallOverlay = ({ action, username, initialRoomId, roomPassword, onClose })
   useEffect(() => {
     const initialize = async () => {
       try {
-        // Create RTCPeerConnection.
+        // Create a new RTCPeerConnection.
         peerConnection.current = new RTCPeerConnection({
           iceServers: [
             { urls: "stun:stun.l.google.com:19302" },
@@ -256,10 +252,15 @@ const CallOverlay = ({ action, username, initialRoomId, roomPassword, onClose })
         },
         async (payload) => {
           const { new: callData } = payload;
-          // When joining, expect answer; when starting, expect offer.
           if (callData.answer && callData.status === "active") {
             console.log("Received answer SDP:", callData.answer);
+            // Guard: process answer only once.
+            if (answerReceivedRef.current) {
+              console.log("Answer already processed; ignoring duplicate.");
+              return;
+            }
             await handleRemoteAnswer(callData.answer);
+            answerReceivedRef.current = true;
           }
           if (callData.offer && callData.status === "negotiating") {
             await handleRemoteOffer(callData.offer);
@@ -405,13 +406,19 @@ const CallOverlay = ({ action, username, initialRoomId, roomPassword, onClose })
       setCallStatus("Answer sent, establishing connection...");
       processIceCandidateQueue();
     } catch (error) {
-      console.error("Error in handleRemoteOffer:", error);
       setCallStatus("Failed to process offer");
     }
   };
 
   const handleRemoteAnswer = async (answerSdp) => {
     try {
+      if (
+        peerConnection.current.remoteDescription &&
+        peerConnection.current.remoteDescription.type === "answer"
+      ) {
+        console.log("Remote description already set; ignoring duplicate answer.");
+        return;
+      }
       console.log("Received answer SDP:", answerSdp);
       await peerConnection.current.setRemoteDescription({ type: "answer", sdp: answerSdp });
       setCallStatus("Answer received, establishing connection...");
@@ -531,7 +538,7 @@ const CallOverlay = ({ action, username, initialRoomId, roomPassword, onClose })
   );
 };
 
-// CSS styles (restored original styling and added modal styles)
+// CSS styles (original styling plus modal styles)
 const styles = `
   /* Main page styling */
   .page-container {
@@ -586,7 +593,7 @@ const styles = `
   .icon {
     font-size: 1.4rem;
   }
-  /* Overlay and call container */
+  /* Overlay and call container styling */
   .overlay {
     position: fixed;
     top: 0;
@@ -759,7 +766,7 @@ const styles = `
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.85);
+    background: rgba(0,0,0,0.85);
     display: flex;
     justify-content: center;
     align-items: center;
