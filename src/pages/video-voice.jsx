@@ -161,8 +161,7 @@ const CallOverlay = ({ action, username, initialRoomId, roomPassword, onClose })
   const remoteMediaRef = useRef(null);
   const peerConnection = useRef(null);
   const localStream = useRef(null);
-  // Instead of assigning remote video directly to the ref's element,
-  // we store the remote stream in its own ref.
+  // Store remote stream separately.
   const remoteStreamRef = useRef(new MediaStream());
   const channelRef = useRef(null);
   const roomIdRef = useRef("");
@@ -219,7 +218,6 @@ const CallOverlay = ({ action, username, initialRoomId, roomPassword, onClose })
     pc.ontrack = (event) => {
       // Add remote tracks to remoteStreamRef.
       remoteStreamRef.current.addTrack(event.track);
-      // Update the remote video element if it exists.
       if (remoteMediaRef.current) {
         remoteMediaRef.current.srcObject = remoteStreamRef.current;
       }
@@ -235,7 +233,6 @@ const CallOverlay = ({ action, username, initialRoomId, roomPassword, onClose })
   const setupLocalMedia = async () => {
     try {
       localStream.current = await navigator.mediaDevices.getUserMedia(mediaConstraints);
-      // If the local video element is mounted, assign the stream.
       if (localMediaRef.current) {
         localMediaRef.current.srcObject = localStream.current;
       }
@@ -506,7 +503,7 @@ const CallOverlay = ({ action, username, initialRoomId, roomPassword, onClose })
         <div className="media-container">
           {isSwapped ? (
             <>
-              {/* Main video: local stream; Overlay: remote stream */}
+              {/* Main video: local stream (mirrored); Overlay: remote stream */}
               <video
                 key="local-main"
                 ref={(el) => {
@@ -519,6 +516,7 @@ const CallOverlay = ({ action, username, initialRoomId, roomPassword, onClose })
                 muted
                 playsInline
                 className="main-video"
+                style={{ transform: "scaleX(-1)" }}
               />
               <div key="remote-overlay" className="overlay-video" onClick={handleSwap}>
                 <video
@@ -537,7 +535,7 @@ const CallOverlay = ({ action, username, initialRoomId, roomPassword, onClose })
             </>
           ) : (
             <>
-              {/* Main video: remote stream; Overlay: local stream */}
+              {/* Main video: remote stream; Overlay: local stream (mirrored) */}
               <video
                 key="remote-main"
                 ref={(el) => {
@@ -563,6 +561,7 @@ const CallOverlay = ({ action, username, initialRoomId, roomPassword, onClose })
                   muted
                   playsInline
                   className="small-video"
+                  style={{ transform: "scaleX(-1)" }}
                 />
               </div>
             </>
@@ -601,7 +600,7 @@ const CallOverlay = ({ action, username, initialRoomId, roomPassword, onClose })
   );
 };
 
-// CSS styles (restoring original look, adjusted overlay height, swap layout, and modal styling)
+// CSS styles (restoring original look, adjusted overlay height, swap layout, mirror local video, and modal styling)
 const styles = `
   /* Main page styling */
   .page-container {
