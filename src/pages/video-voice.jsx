@@ -17,7 +17,7 @@ const VideoVoicePage = () => {
       <div className="card">
         <h2 className="title">Connect Now</h2>
         <div className="button-group">
-          {/* Start Video Chat: prompt for room password; generate new room ID */}
+          {/* Start Video Chat */}
           <button
             className="chat-button video"
             onClick={() => {
@@ -35,7 +35,7 @@ const VideoVoicePage = () => {
             <FiVideo className="icon" />
             Start Video Chat
           </button>
-          {/* Join Video Chat: prompt for room ID and password */}
+          {/* Join Video Chat */}
           <button
             className="chat-button video"
             onClick={() => {
@@ -106,7 +106,7 @@ const VideoVoicePage = () => {
 };
 
 const isValidUUID = (id) => {
-  const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   return regex.test(id);
 };
 
@@ -179,8 +179,12 @@ const CallOverlay = ({
     iceCandidateBuffer.current = [];
   };
 
-  // JOIN: Look up existing call row using provided credentials.
+  // JOIN: Validate room ID and then query for an existing call row.
   const joinCall = async () => {
+    if (!isValidUUID(initialRoomId)) {
+      setCallStatus("Invalid room ID format.");
+      return;
+    }
     roomId.current = initialRoomId;
     setCallStatus("Connecting to peer...");
     const { data: existingCalls, error } = await supabase
@@ -202,10 +206,10 @@ const CallOverlay = ({
     }
   };
 
-  // START: Create a new call row using a fresh room ID.
+  // START: Create a new call row with a fresh room ID.
   const createNewCall = async () => {
     try {
-      const newRoomId = uuidv4();
+      const newRoomId = uuidv4(); // Always generate a new room id
       roomId.current = newRoomId;
       setDisplayRoomId(newRoomId);
       setIsCaller(false);
@@ -254,7 +258,7 @@ const CallOverlay = ({
     }
   };
 
-  // Setup realtime channel for signaling.
+  // Setup realtime signaling channel.
   const setupSignalingChannel = (room) => {
     channel.current = supabase
       .channel(`room-${room}`)
@@ -337,7 +341,7 @@ const CallOverlay = ({
     }
   };
 
-  // Main initialization – differs based on action.
+  // Main initialization – based on action ("start" vs "join")
   const initializeCall = async () => {
     try {
       setCallStatus("Connecting...");
@@ -358,9 +362,12 @@ const CallOverlay = ({
           }
         }
       };
+      // Updated ontrack: accumulate tracks manually in a MediaStream.
       peerConnection.current.ontrack = (event) => {
-        const remoteStream = event.streams[0];
-        remoteMediaRef.current.srcObject = remoteStream;
+        if (!remoteMediaRef.current.srcObject) {
+          remoteMediaRef.current.srcObject = new MediaStream();
+        }
+        remoteMediaRef.current.srcObject.addTrack(event.track);
         setCallStatus("Connected");
       };
 
@@ -391,7 +398,6 @@ const CallOverlay = ({
             <FiX />
           </button>
         </div>
-        {/* Show the room ID if the user is starting the call */}
         {action === "start" && displayRoomId && (
           <p className="room-id" style={{ marginBottom: "1rem", color: "#FFF" }}>
             Your Room ID: {displayRoomId}
