@@ -1,11 +1,15 @@
 import React, { useState, useRef, useEffect } from "react";
 import { FiVideo, FiPhone, FiX } from "react-icons/fi";
 import { supabase } from "../supabaseClient";
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4 } from "uuid";
 
 const VideoVoicePage = () => {
   const [showCallOverlay, setShowCallOverlay] = useState(false);
-  const [callType, setCallType] = useState(null);
+  const [callType, setCallType] = useState(null); // "video" or "voice"
+  const [action, setAction] = useState(null); // "start" or "join"
+  // For passing room credentials to the overlay:
+  const [callRoomId, setCallRoomId] = useState("");
+  const [callRoomPassword, setCallRoomPassword] = useState("");
   const username = localStorage.getItem("chatUsername") || "Anonymous";
 
   return (
@@ -13,32 +17,84 @@ const VideoVoicePage = () => {
       <div className="card">
         <h2 className="title">Connect Now</h2>
         <div className="button-group">
-          <button 
-            className="chat-button video" 
+          <button
+            className="chat-button video"
             onClick={() => {
-              setCallType("video");
-              setShowCallOverlay(true);
+              const roomPass = window.prompt("Enter a room password for your call:");
+              if (roomPass) {
+                // Generate a new room id for starting a call
+                const newRoomId = uuidv4();
+                setCallRoomId(newRoomId);
+                setCallRoomPassword(roomPass);
+                setCallType("video");
+                setAction("start");
+                setShowCallOverlay(true);
+              }
             }}
           >
             <FiVideo className="icon" />
-            Video Call
+            Start Video Chat
+          </button>
+          <button
+            className="chat-button video"
+            onClick={() => {
+              const roomIdInput = window.prompt("Enter the room ID:");
+              const roomPassInput = window.prompt("Enter the room password:");
+              if (roomIdInput && roomPassInput) {
+                setCallRoomId(roomIdInput);
+                setCallRoomPassword(roomPassInput);
+                setCallType("video");
+                setAction("join");
+                setShowCallOverlay(true);
+              }
+            }}
+          >
+            <FiVideo className="icon" />
+            Join Video Chat
           </button>
           <button
             className="chat-button voice"
             onClick={() => {
-              setCallType("voice");
-              setShowCallOverlay(true);
+              const roomPass = window.prompt("Enter a room password for your call:");
+              if (roomPass) {
+                const newRoomId = uuidv4();
+                setCallRoomId(newRoomId);
+                setCallRoomPassword(roomPass);
+                setCallType("voice");
+                setAction("start");
+                setShowCallOverlay(true);
+              }
             }}
           >
             <FiPhone className="icon" />
-            Voice Call
+            Start Voice Chat
+          </button>
+          <button
+            className="chat-button voice"
+            onClick={() => {
+              const roomIdInput = window.prompt("Enter the room ID:");
+              const roomPassInput = window.prompt("Enter the room password:");
+              if (roomIdInput && roomPassInput) {
+                setCallRoomId(roomIdInput);
+                setCallRoomPassword(roomPassInput);
+                setCallType("voice");
+                setAction("join");
+                setShowCallOverlay(true);
+              }
+            }}
+          >
+            <FiPhone className="icon" />
+            Join Voice Chat
           </button>
         </div>
       </div>
       {showCallOverlay && (
         <CallOverlay
           callType={callType}
+          action={action}
           username={username}
+          initialRoomId={callRoomId}
+          roomPassword={callRoomPassword}
           onClose={() => setShowCallOverlay(false)}
         />
       )}
@@ -46,25 +102,34 @@ const VideoVoicePage = () => {
   );
 };
 
-const isValidUUID = uuid => {
+const isValidUUID = (id) => {
   const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  return regex.test(uuid);
+  return regex.test(id);
 };
 
-const CallOverlay = ({ callType, username, onClose }) => {
+const CallOverlay = ({
+  callType,
+  action, // "start" or "join"
+  username,
+  initialRoomId,
+  roomPassword,
+  onClose,
+}) => {
   const [callStatus, setCallStatus] = useState("initializing");
   const [isCaller, setIsCaller] = useState(false);
+  const [displayRoomId, setDisplayRoomId] = useState("");
   const localMediaRef = useRef(null);
   const remoteMediaRef = useRef(null);
   const peerConnection = useRef(null);
   const channel = useRef(null);
   const iceCandidateBuffer = useRef([]);
-  const roomId = useRef('');
+  const roomId = useRef("");
   const mediaConstraints = {
     audio: true,
-    video: callType === "video" ? { facingMode: "user" } : false
+    video: callType === "video" ? { facingMode: "user" } : false,
   };
 
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (peerConnection.current) {
@@ -79,97 +144,77 @@ const CallOverlay = ({ callType, username, onClose }) => {
 
   const stopMediaTracks = () => {
     if (localMediaRef.current?.srcObject) {
-      localMediaRef.current.srcObject.getTracks().forEach(track => track.stop());
+      localMediaRef.current.srcObject.getTracks().forEach((track) => track.stop());
     }
     if (remoteMediaRef.current?.srcObject) {
-      remoteMediaRef.current.srcObject.getTracks().forEach(track => track.stop());
-    }
-  };
-
-  const initializeCall = async () => {
-    try {
-      setCallStatus("Connecting...");
-      
-      const stream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
-      localMediaRef.current.srcObject = stream;
-
-      peerConnection.current = new RTCPeerConnection({
-        iceServers: [
-          { urls: "stun:stun.l.google.com:19302" },
-          // Add TURN servers here
-        ]
-      });
-
-      peerConnection.current.onicecandidate = ({ candidate }) => {
-        if (candidate) {
-          if (isValidUUID(roomId.current)) {
-            sendIceCandidate(candidate);
-          } else {
-            iceCandidateBuffer.current.push(candidate);
-          }
-        }
-      };
-
-      peerConnection.current.ontrack = event => {
-        const remoteStream = event.streams[0];
-        remoteMediaRef.current.srcObject = remoteStream;
-        setCallStatus("Connected");
-      };
-
-      const { data: existingCalls, error } = await supabase
-        .from("calls")
-        .select("*")
-        .eq("status", "waiting")
-        .limit(1);
-
-      if (existingCalls?.length > 0) {
-        await handleExistingCall(existingCalls[0]);
-      } else {
-        await createNewCall();
-      }
-    } catch (error) {
-      console.error("Call initialization failed:", error);
-      setCallStatus("Connection failed");
+      remoteMediaRef.current.srcObject.getTracks().forEach((track) => track.stop());
     }
   };
 
   const sendIceCandidate = async (candidate) => {
     try {
       if (!isValidUUID(roomId.current)) {
-        console.error('Invalid room ID when sending ICE candidate');
+        console.error("Invalid room ID when sending ICE candidate");
         return;
       }
-
-      const { error } = await supabase
-        .from("ice_candidates")
-        .insert({
-          room_id: roomId.current,
-          candidate: candidate.toJSON()
-        });
-
+      const { error } = await supabase.from("ice_candidates").insert({
+        room_id: roomId.current,
+        candidate: candidate.toJSON(),
+      });
       if (error) throw error;
     } catch (error) {
       console.error("Failed to send ICE candidate:", error);
     }
   };
 
+  const flushIceCandidates = () => {
+    iceCandidateBuffer.current.forEach((candidate) => {
+      if (isValidUUID(roomId.current)) {
+        sendIceCandidate(candidate);
+      }
+    });
+    iceCandidateBuffer.current = [];
+  };
+
+  // For joining a call: verify provided room credentials.
+  const joinCall = async () => {
+    roomId.current = initialRoomId;
+    setCallStatus("Connecting to peer...");
+    const { data: existingCalls, error } = await supabase
+      .from("calls")
+      .select("*")
+      .eq("id", initialRoomId)
+      .eq("room_password", roomPassword)
+      .eq("status", "waiting")
+      .limit(1);
+    if (error) {
+      console.error("Error checking for existing call:", error);
+      setCallStatus("Error checking call status");
+      return;
+    }
+    if (existingCalls?.length > 0) {
+      await handleExistingCall(existingCalls[0]);
+    } else {
+      setCallStatus("No available call found with that Room ID/Password");
+    }
+  };
+
+  // For starting a call: generate a new room id (fresh) and display it.
   const createNewCall = async () => {
     try {
+      // Always generate a new room id regardless of initialRoomId to avoid duplicates.
       const newRoomId = uuidv4();
       roomId.current = newRoomId;
+      setDisplayRoomId(newRoomId); // Show the room id on screen
       setIsCaller(false);
-
-      const { error } = await supabase
-        .from("calls")
-        .insert({ 
-          id: newRoomId,
-          status: "waiting",
-          type: callType,
-          caller: username
-        });
-
+      const { error } = await supabase.from("calls").insert({
+        id: newRoomId,
+        status: "waiting",
+        type: callType,
+        caller: username,
+        room_password: roomPassword,
+      });
       if (error) throw error;
-
       setupSignalingChannel(newRoomId);
       setCallStatus("Waiting for peer...");
       flushIceCandidates();
@@ -179,39 +224,26 @@ const CallOverlay = ({ callType, username, onClose }) => {
     }
   };
 
-  const flushIceCandidates = () => {
-    iceCandidateBuffer.current.forEach(candidate => {
-      if (isValidUUID(roomId.current)) {
-        sendIceCandidate(candidate);
-      }
-    });
-    iceCandidateBuffer.current = [];
-  };
-
+  // For joining: update the call row with an offer.
   const handleExistingCall = async (existingCall) => {
     try {
       if (!isValidUUID(existingCall.id)) {
-        throw new Error('Invalid existing call ID');
+        throw new Error("Invalid existing call ID");
       }
-
       roomId.current = existingCall.id;
       setIsCaller(true);
       setCallStatus("Connecting to peer...");
-
       const offer = await peerConnection.current.createOffer();
       await peerConnection.current.setLocalDescription(offer);
-
       const { error } = await supabase
         .from("calls")
-        .update({ 
+        .update({
           status: "negotiating",
           offer: offer.sdp,
-          callee: username
+          callee: username,
         })
         .eq("id", existingCall.id);
-
       if (error) throw error;
-
       setupSignalingChannel(existingCall.id);
       flushIceCandidates();
     } catch (error) {
@@ -220,34 +252,41 @@ const CallOverlay = ({ callType, username, onClose }) => {
     }
   };
 
-  const setupSignalingChannel = (roomId) => {
+  // Realtime signaling channel
+  const setupSignalingChannel = (room) => {
     channel.current = supabase
-      .channel(`room-${roomId}`)
-      .on("postgres_changes", 
-        { 
+      .channel(`room-${room}`)
+      .on(
+        "postgres_changes",
+        {
           event: "UPDATE",
           schema: "public",
           table: "calls",
-          filter: `id=eq.${roomId}`
+          filter: `id=eq.${room}`,
         },
         async (payload) => {
+          console.log("Received call update:", payload);
           const { new: callData } = payload;
-          if (!isCaller && callData.offer) {
-            await handleOffer(callData.offer);
-          }
+          // If joining (caller) and answer is received, set remote description.
           if (isCaller && callData.answer) {
             await handleAnswer(callData.answer);
           }
+          // If starting (waiting user) and an offer appears, answer it.
+          if (!isCaller && callData.offer) {
+            await handleOffer(callData.offer);
+          }
         }
       )
-      .on("postgres_changes",
+      .on(
+        "postgres_changes",
         {
           event: "INSERT",
           schema: "public",
           table: "ice_candidates",
-          filter: `room_id=eq.${roomId}`
+          filter: `room_id=eq.${room}`,
         },
         async (payload) => {
+          console.log("Received ICE candidate:", payload);
           const { new: candidateData } = payload;
           try {
             const candidate = new RTCIceCandidate(candidateData.candidate);
@@ -264,21 +303,19 @@ const CallOverlay = ({ callType, username, onClose }) => {
     try {
       await peerConnection.current.setRemoteDescription({
         type: "offer",
-        sdp: offerSdp
+        sdp: offerSdp,
       });
-
       const answer = await peerConnection.current.createAnswer();
       await peerConnection.current.setLocalDescription(answer);
-
       const { error } = await supabase
         .from("calls")
         .update({
           answer: answer.sdp,
-          status: "active"
+          status: "active",
         })
         .eq("id", roomId.current);
-
       if (error) throw error;
+      setCallStatus("Connected");
     } catch (error) {
       console.error("Error handling offer:", error);
       setCallStatus("Connection failed");
@@ -289,13 +326,59 @@ const CallOverlay = ({ callType, username, onClose }) => {
     try {
       await peerConnection.current.setRemoteDescription({
         type: "answer",
-        sdp: answerSdp
+        sdp: answerSdp,
       });
+      setCallStatus("Connected");
     } catch (error) {
       console.error("Error handling answer:", error);
       setCallStatus("Connection failed");
     }
   };
+
+  // Main initialization – based on action ("start" vs "join")
+  const initializeCall = async () => {
+    try {
+      setCallStatus("Connecting...");
+      const stream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
+      localMediaRef.current.srcObject = stream;
+      peerConnection.current = new RTCPeerConnection({
+        iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+      });
+      stream.getTracks().forEach((track) => {
+        peerConnection.current.addTrack(track, stream);
+      });
+      peerConnection.current.onicecandidate = ({ candidate }) => {
+        if (candidate) {
+          if (isValidUUID(roomId.current)) {
+            sendIceCandidate(candidate);
+          } else {
+            iceCandidateBuffer.current.push(candidate);
+          }
+        }
+      };
+      peerConnection.current.ontrack = (event) => {
+        const remoteStream = event.streams[0];
+        remoteMediaRef.current.srcObject = remoteStream;
+        setCallStatus("Connected");
+      };
+
+      if (action === "join") {
+        await joinCall();
+      } else if (action === "start") {
+        await createNewCall();
+      }
+    } catch (err) {
+      console.error("Call initialization failed:", err);
+      setCallStatus("Connection failed");
+    }
+  };
+
+  useEffect(() => {
+    if (callStatus === "initializing") {
+      initializeCall();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="overlay">
@@ -306,10 +389,14 @@ const CallOverlay = ({ callType, username, onClose }) => {
             <FiX />
           </button>
         </div>
-
+        {action === "start" && displayRoomId && (
+          <p className="room-id" style={{ marginBottom: "1rem", color: "#FFF" }}>
+            Your Room ID: {displayRoomId}
+          </p>
+        )}
         <div className="media-container">
           {callType === "video" && (
-            <video 
+            <video
               ref={localMediaRef}
               autoPlay
               muted
@@ -324,25 +411,30 @@ const CallOverlay = ({ callType, username, onClose }) => {
             className={`remote-media ${callType === "voice" ? "audio-only" : ""}`}
           />
         </div>
-
         <div className="call-controls">
           <p className="status">{callStatus}</p>
-          {!callStatus.includes("Connected") && (
-            <button 
-              className="connect-button"
-              onClick={initializeCall}
-              disabled={callStatus === "Connecting..."}
-            >
-              {callStatus === "initializing" ? "Start Call" : "Connecting..."}
-            </button>
+          {callStatus === "No available call found with that Room ID/Password" && (
+            <p className="status" style={{ color: "red" }}>
+              Please check the Room ID and Password.
+            </p>
           )}
+          {!callStatus.includes("Connected") &&
+            callStatus !== "No available call found with that Room ID/Password" && (
+              <button
+                className="connect-button"
+                onClick={initializeCall}
+                disabled={callStatus === "Connecting..."}
+              >
+                {callStatus === "initializing" ? "Start Call" : "Connecting..."}
+              </button>
+            )}
         </div>
       </div>
     </div>
   );
 };
 
-// Add your CSS styles here
+// Injected CSS styles
 const styles = `
   .page-container {
     background: #0E1422;
@@ -353,7 +445,6 @@ const styles = `
     padding: 1rem;
     font-family: 'Comfortaa', sans-serif;
   }
-
   .card {
     background: #1A1F2E;
     border-radius: 24px;
@@ -363,18 +454,15 @@ const styles = `
     text-align: center;
     box-shadow: 0 8px 24px rgba(0,0,0,0.2);
   }
-
   .title {
     color: #FFF;
     font-size: 1.8rem;
     margin-bottom: 2rem;
   }
-
   .button-group {
     display: grid;
     gap: 1rem;
   }
-
   .chat-button {
     display: flex;
     align-items: center;
@@ -388,15 +476,12 @@ const styles = `
     cursor: pointer;
     transition: all 0.3s ease;
   }
-
   .chat-button:hover {
     background: #3B82F6;
   }
-
   .icon {
     font-size: 1.4rem;
   }
-
   .overlay {
     position: fixed;
     top: 0;
@@ -409,7 +494,6 @@ const styles = `
     align-items: center;
     z-index: 1000;
   }
-
   .call-container {
     background: #1A1F2E;
     border-radius: 16px;
@@ -417,14 +501,12 @@ const styles = `
     width: 90%;
     max-width: 800px;
   }
-
   .call-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 1.5rem;
   }
-
   .close-button {
     background: none;
     border: none;
@@ -432,12 +514,10 @@ const styles = `
     font-size: 1.5rem;
     cursor: pointer;
   }
-
   .media-container {
     position: relative;
     margin-bottom: 2rem;
   }
-
   .local-video {
     position: absolute;
     top: 1rem;
@@ -446,14 +526,12 @@ const styles = `
     border-radius: 8px;
     border: 2px solid #3B82F6;
   }
-
   .remote-media {
     width: 100%;
     max-height: 60vh;
     border-radius: 12px;
     background: #000;
   }
-
   .audio-only {
     background: #252C3F;
     height: 200px;
@@ -463,16 +541,13 @@ const styles = `
     font-size: 1.2rem;
     color: #3B82F6;
   }
-
   .call-controls {
     text-align: center;
   }
-
   .status {
     color: #FFF;
     margin-bottom: 1rem;
   }
-
   .connect-button {
     background: #3B82F6;
     color: #FFF;
@@ -482,30 +557,24 @@ const styles = `
     cursor: pointer;
     transition: opacity 0.3s ease;
   }
-
   .connect-button:disabled {
     opacity: 0.7;
     cursor: not-allowed;
   }
-
   @media (max-width: 480px) {
     .card {
       padding: 1.5rem;
     }
-
     .title {
       font-size: 1.4rem;
     }
-
     .chat-button {
       padding: 1rem;
       font-size: 1rem;
     }
-
     .call-container {
       padding: 1.5rem;
     }
-
     .remote-media {
       height: 50vh;
     }
