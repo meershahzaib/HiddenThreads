@@ -4,7 +4,6 @@ import { supabase } from "../supabaseClient";
 
 // Helper function to generate a 6-digit room ID as a string.
 const generateRoomId = () => {
-  // Generates a random number between 100000 and 999999.
   return (Math.floor(Math.random() * 900000) + 100000).toString();
 };
 
@@ -21,7 +20,7 @@ const VideoVoicePage = () => {
   const [callRoomPassword, setCallRoomPassword] = useState("");
   const username = localStorage.getItem("chatUsername") || "Anonymous";
 
-  // Audio wave SVG data (for reference)
+  // Audio wave SVG (for reference)
   const audioWaveSvg = `data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA4MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICAgIDxnIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzNCODJGNiIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiPgogICAgICA8cGF0aCBjbGFzcz0id2F2ZTEiIGQ9Ik0xIDIwIHY2IGgtMSB2LTYiIC8+CiAgICAgIDxwYXRoIGNsYXNzPSJ3YXZlMiIgZD0iTTUgMTAgdjIwIGgtMSB2LTIwIiAvPgogICAgICA8cGF0aCBjbGFzcz0id2F2ZTMiIGQ9Ik0xMCA1IHYzMCBoLTEgdi0zMCIgLz4KICAgICAgPHBhdGggY2xhc3M9IndhdmU0IiBkPSJNMTUgMTAgdjIwIGgtMSB2LTIwIiAvPgogICAgICA8cGF0aCBjbGFzcz0id2F2ZTUiIGQ9Ik0yMCAxNSB2MTAgaC0xIHYtMTAiIC8+CiAgICAgIDxwYXRoIGNsYXNzPSJ3YXZlNiIgZD0iTTI1IDUgdjMwIGgtMSB2LTMwIiAvPgogICAgICA8cGF0aCBjbGFzcz0id2F2ZTciIGQ9Ik0zMCAxMCB2MjAgaC0xIHYtMjAiIC8+CiAgICAgIDxwYXRoIGNsYXNzPSJ3YXZlOCIgZD0iTTM1IDE1IHYxMCBoLTEgdi0xMCIgLz4KICAgICAgPHBhdGggY2xhc3M9IndhdmU5IiBkPSJNNDAgNSB2MzAgaC0xIHYtMzAiIC8+CiAgICAgIDxwYXRoIGNsYXNzPSJ3YXZlMTAiIGQ9Ik00NSAxMCB2MjAgaC0xIHYtMjAiIC8+CiAgICAgIDxwYXRoIGNsYXNzPSJ3YXZlMTEiIGQ9Ik01MCAxNSB2MTAgaC0xIHYtMTAiIC8+CiAgICAgIDxwYXRoIGNsYXNzPSJ3YXZlMTIiIGQ9Ik01NSA1IHYzMCBoLTEgdi0zMCIgLz4KICAgICAgPHBhdGggY2xhc3M9IndhdmUxMyIgZD0iTTYwIDEwIHYyMCBoLTEgdi0yMCIgLz4KICAgICAgPHBhdGggY2xhc3M9IndhdmUxNCIgZD0iTTY1IDE1IHYxMCBoLTEgdi0xMCIgLz4KICAgICAgPHBhdGggY2xhc3M9IndhdmUxNSIgZD0iTTcwIDUgdjMwIGgtMSB2LTMwIiAvPgogICAgICA8cGF0aCBjbGFzcz0id2F2ZTE2IiBkPSJNNzUgMTUgdjEwIGgtMSB2LTEwIiAvPgogICAgICA8cGF0aCBjbGFzcz0id2F2ZTE3IiBkPSJNODAgMjAgdjYgaC0xIHYtNiIgLz4KICAgIDwvZz4KICAgIDxzdHlsZT4KICAgICAgLndhdmUxLCAud2F2ZTQsIC53YXZlNywgLndhdmUxMCwgLndhdmUxMywgLndhdmUxNiB7CiAgICAgICAgYW5pbWF0aW9uOiB3YXZlMSAxLjVzIGluZmluaXRlIGVhc2UtaW4tb3V0OwogICAgICB9CiAgICAgIC53YXZlMiwgLndhdmU1LCAud2F2ZTgsIC53YXZlMTEsIC53YXZlMTQsIC53YXZlMTcgewogICAgICAgIGFuaW1hdGlvbjogd2F2ZTIgMS44cyBpbmZpbml0ZSBlYXNlLWluLW91dDsKICAgICAgfQogICAgICAud2F2ZTMsIC53YXZlNiwgLndhdmU5LCAud2F2ZTEyLCAud2F2ZTE1IHsKICAgICAgICBhbmltYXRpb246IHdhdmUzIDEuMnMgaW5maW5pdGUgZWFzZS1pbi1vdXQ7CiAgICAgIH0KCiAgICAgIEBrZXlmcmFtZXMgd2F2ZTEgewogICAgICAgIDAlIHsgdHJhbnNmb3JtOiB0cmFuc2xhdGVZKDApOyB9CiAgICAgICAgNTAlIHsgdHJhbnNmb3JtOiB0cmFuc2xhdGVZKC01cHgpOyB9CiAgICAgICAgMTAwJSB7IHRyYW5zZm9ybTogdHJhbnNsYXRlWSgwKTsgfQogICAgICB9CiAgICAgIEBrZXlmcmFtZXMgd2F2ZTIgewogICAgICAgIDAlIHsgdHJhbnNmb3JtOiB0cmFuc2xhdGVZKC01cHgpOyB9CiAgICAgICAgNTAlIHsgdHJhbnNmb3JtOiB0cmFuc2xhdGVZKDApOyB9CiAgICAgICAgMTAwJSB7IHRyYW5zZm9ybTogdHJhbnNsYXRlWSgtNXB4KTsgfQogICAgICB9CiAgICAgIEBrZXlmcmFtZXMgd2F2ZTMgewogICAgICAgIDAlIHsgdHJhbnNmb3JtOiB0cmFuc2xhdGVZKC0zcHgpOyB9CiAgICAgICAgNTAlIHsgdHJhbnNmb3JtOiB0cmFuc2xhdGVZKDNweCk7IH0KICAgICAgICAxMDAlIHsgdHJhbnNmb3JtOiB0cmFuc2xhdGVZKC0zcHgpOyB9CiAgICAgIH0KICAgIDwvc3R5bGU+Cjwvc3ZnPg==`;
 
   const handleStartCall = (type) => {
@@ -29,8 +28,9 @@ const VideoVoicePage = () => {
     if (!roomPass) return;
 
     const newRoomId = generateRoomId();
-    setCallRoomId(newRoomId);
-    setCallRoomPassword(roomPass);
+    // Trim inputs to remove extra spaces
+    setCallRoomId(newRoomId.trim());
+    setCallRoomPassword(roomPass.trim());
     setCallType(type);
     setAction("start");
     setShowCallOverlay(true);
@@ -43,8 +43,9 @@ const VideoVoicePage = () => {
     const roomPassInput = window.prompt("Enter the Room Password:");
     if (!roomPassInput) return;
 
-    setCallRoomId(roomIdInput);
-    setCallRoomPassword(roomPassInput);
+    // Store trimmed values
+    setCallRoomId(roomIdInput.trim());
+    setCallRoomPassword(roomPassInput.trim());
     setCallType(type);
     setAction("join");
     setShowCallOverlay(true);
@@ -228,7 +229,7 @@ const CallOverlay = ({
     }
   };
 
-  // Use upsert to prevent duplicate key errors and use a 6-digit room id
+  // Create a call record with a 6-digit room ID
   const createNewCall = async () => {
     try {
       setIsCaller(false);
@@ -259,20 +260,25 @@ const CallOverlay = ({
 
   const joinExistingCall = async () => {
     try {
-      if (!isValidRoomId(initialRoomId)) {
+      // Ensure values are trimmed
+      const trimmedRoomId = initialRoomId.trim();
+      const trimmedRoomPassword = roomPassword.trim();
+      
+      if (!isValidRoomId(trimmedRoomId)) {
         setCallStatus("Invalid room ID format");
         return;
       }
 
-      roomIdRef.current = initialRoomId;
+      roomIdRef.current = trimmedRoomId;
       setIsCaller(true);
+      console.log("Joining call with id:", trimmedRoomId, "password:", trimmedRoomPassword);
 
-      // Check if call exists and is available
+      // Query Supabase for a matching call record
       const { data: existingCalls, error } = await supabase
         .from("calls")
         .select("*")
-        .eq("id", initialRoomId)
-        .eq("room_password", roomPassword)
+        .eq("id", trimmedRoomId)
+        .eq("room_password", trimmedRoomPassword)
         .eq("status", "waiting")
         .limit(1);
 
@@ -283,7 +289,7 @@ const CallOverlay = ({
       }
 
       // Set up signaling channel before creating offer
-      setupSignalingChannel(initialRoomId);
+      setupSignalingChannel(trimmedRoomId);
 
       // Create and send offer
       const offer = await peerConnection.current.createOffer();
@@ -297,7 +303,7 @@ const CallOverlay = ({
           offer: offer.sdp,
           callee: username
         })
-        .eq("id", initialRoomId);
+        .eq("id", trimmedRoomId);
 
       if (updateError) throw updateError;
 
@@ -479,7 +485,7 @@ const CallOverlay = ({
     }
   };
 
-  // Update call status on cleanup (remove updated_at field)
+  // On cleanup, update call status to "ended"
   const cleanupCall = () => {
     if (localStream.current) {
       localStream.current.getTracks().forEach(track => track.stop());
@@ -598,7 +604,7 @@ const CallOverlay = ({
   );
 };
 
-// Complete CSS styles with the fixed ".audio-wave" selector
+// CSS styles (with corrected .audio-wave selector)
 const styles = `
   .page-container {
     background: #0E1422;
