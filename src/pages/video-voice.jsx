@@ -1,7 +1,17 @@
 import React, { useState, useRef, useEffect } from "react";
 import { FiVideo, FiPhone, FiX, FiMic, FiMicOff, FiVideoOff } from "react-icons/fi";
 import { supabase } from "../supabaseClient";
-import { v4 as uuidv4 } from "uuid";
+
+// Helper function to generate a 6-digit room ID as a string.
+const generateRoomId = () => {
+  // Generates a random number between 100000 and 999999.
+  return (Math.floor(Math.random() * 900000) + 100000).toString();
+};
+
+// Validate that the room ID is a 6-digit numerical string.
+const isValidRoomId = (id) => {
+  return /^\d{6}$/.test(id);
+};
 
 const VideoVoicePage = () => {
   const [showCallOverlay, setShowCallOverlay] = useState(false);
@@ -18,7 +28,7 @@ const VideoVoicePage = () => {
     const roomPass = window.prompt("Enter a room password for your call:");
     if (!roomPass) return;
 
-    const newRoomId = uuidv4();
+    const newRoomId = generateRoomId();
     setCallRoomId(newRoomId);
     setCallRoomPassword(roomPass);
     setCallType(type);
@@ -27,7 +37,7 @@ const VideoVoicePage = () => {
   };
 
   const handleJoinCall = (type) => {
-    const roomIdInput = window.prompt("Enter the Room ID:");
+    const roomIdInput = window.prompt("Enter the Room ID (6 digits):");
     if (!roomIdInput) return;
 
     const roomPassInput = window.prompt("Enter the Room Password:");
@@ -75,11 +85,6 @@ const VideoVoicePage = () => {
       )}
     </div>
   );
-};
-
-const isValidUUID = (id) => {
-  const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  return regex.test(id);
 };
 
 const CallOverlay = ({
@@ -223,15 +228,15 @@ const CallOverlay = ({
     }
   };
 
-  // Use upsert to prevent duplicate key errors and remove updated_at
+  // Use upsert to prevent duplicate key errors and use a 6-digit room id
   const createNewCall = async () => {
     try {
       setIsCaller(false);
-      const newRoomId = initialRoomId || uuidv4();
+      const newRoomId = initialRoomId || generateRoomId();
       roomIdRef.current = newRoomId;
       setDisplayRoomId(newRoomId);
 
-      // Upsert call record in database to avoid duplicate key errors
+      // Upsert call record in database
       const { error } = await supabase.from("calls").upsert({
         id: newRoomId,
         status: "waiting",
@@ -254,7 +259,7 @@ const CallOverlay = ({
 
   const joinExistingCall = async () => {
     try {
-      if (!isValidUUID(initialRoomId)) {
+      if (!isValidRoomId(initialRoomId)) {
         setCallStatus("Invalid room ID format");
         return;
       }
@@ -284,7 +289,7 @@ const CallOverlay = ({
       const offer = await peerConnection.current.createOffer();
       await peerConnection.current.setLocalDescription(offer);
 
-      // Update call with offer; remove updated_at field
+      // Update call with offer
       const { error: updateError } = await supabase
         .from("calls")
         .update({
@@ -394,7 +399,7 @@ const CallOverlay = ({
   const handleLocalIceCandidate = async (candidate) => {
     try {
       const roomId = roomIdRef.current;
-      if (!isValidUUID(roomId)) {
+      if (!isValidRoomId(roomId)) {
         iceCandidatesQueue.current.push(candidate);
         return;
       }
@@ -474,7 +479,7 @@ const CallOverlay = ({
     }
   };
 
-  // Remove updated_at field from cleanup
+  // Remove updated_at field from cleanup update
   const cleanupCall = () => {
     if (localStream.current) {
       localStream.current.getTracks().forEach(track => track.stop());
@@ -485,7 +490,7 @@ const CallOverlay = ({
     if (channelRef.current) {
       supabase.removeChannel(channelRef.current);
     }
-    if (roomIdRef.current && isValidUUID(roomIdRef.current)) {
+    if (roomIdRef.current && isValidRoomId(roomIdRef.current)) {
       supabase
         .from("calls")
         .update({
