@@ -3,7 +3,8 @@ import { FiVideo, FiX, FiMic, FiMicOff, FiVideoOff, FiPhone } from "react-icons/
 import { supabase } from "../supabaseClient";
 
 // Generate a random 6-digit room ID as a string.
-const generateRoomId = () => (Math.floor(Math.random() * 900000) + 100000).toString();
+const generateRoomId = () =>
+  (Math.floor(Math.random() * 900000) + 100000).toString();
 
 // Validate that a room ID is exactly 6 digits.
 const isValidRoomId = (id) => /^\d{6}$/.test(id);
@@ -148,12 +149,14 @@ const VideoVoicePage = () => {
 const CallOverlay = ({ action, username, initialRoomId, roomPassword, onClose }) => {
   const [callStatus, setCallStatus] = useState("initializing");
   const [displayRoomId, setDisplayRoomId] = useState("");
+  // isSwapped determines which video is main vs. small overlay.
+  const [isSwapped, setIsSwapped] = useState(false);
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [videoEnabled, setVideoEnabled] = useState(true);
-  // Ref to prevent processing duplicate answers.
+  // Flag to avoid duplicate answer processing.
   const answerReceivedRef = useRef(false);
 
-  // Refs for media and connection objects.
+  // Refs for media elements and connection objects.
   const localMediaRef = useRef(null);
   const remoteMediaRef = useRef(null);
   const peerConnection = useRef(null);
@@ -210,6 +213,7 @@ const CallOverlay = ({ action, username, initialRoomId, roomPassword, onClose })
       }
     };
     pc.ontrack = (event) => {
+      // When a track arrives, add it to the video stream.
       if (!remoteMediaRef.current.srcObject) {
         remoteMediaRef.current.srcObject = new MediaStream();
       }
@@ -254,7 +258,6 @@ const CallOverlay = ({ action, username, initialRoomId, roomPassword, onClose })
           const { new: callData } = payload;
           if (callData.answer && callData.status === "active") {
             console.log("Received answer SDP:", callData.answer);
-            // Guard: process answer only once.
             if (answerReceivedRef.current) {
               console.log("Answer already processed; ignoring duplicate.");
               return;
@@ -447,6 +450,9 @@ const CallOverlay = ({ action, username, initialRoomId, roomPassword, onClose })
     }
   };
 
+  // Toggle the swapped state (to swap main and overlay video)
+  const handleSwap = () => setIsSwapped((prev) => !prev);
+
   const cleanupCall = () => {
     if (localStream.current) {
       localStream.current.getTracks().forEach((track) => track.stop());
@@ -469,6 +475,8 @@ const CallOverlay = ({ action, username, initialRoomId, roomPassword, onClose })
     onClose();
   };
 
+  // In our layout, if not swapped: remote video is full container and local video is small overlay (clickable to swap).
+  // If swapped: local video is full container and remote video is small overlay.
   return (
     <div className="overlay">
       <div className="call-container">
@@ -489,21 +497,45 @@ const CallOverlay = ({ action, username, initialRoomId, roomPassword, onClose })
           </div>
         )}
         <div className="media-container">
-          <video
-            ref={localMediaRef}
-            autoPlay
-            muted
-            playsInline
-            className={`local-video ${!videoEnabled ? "video-disabled" : ""}`}
-          />
-          <div className="remote-media-wrapper">
-            <video
-              ref={remoteMediaRef}
-              autoPlay
-              playsInline
-              className="remote-video"
-            />
-          </div>
+          {isSwapped ? (
+            <>
+              {/* Main: local video, Overlay: remote video */}
+              <video
+                ref={localMediaRef}
+                autoPlay
+                muted
+                playsInline
+                className="main-video"
+              />
+              <div className="overlay-video" onClick={handleSwap}>
+                <video
+                  ref={remoteMediaRef}
+                  autoPlay
+                  playsInline
+                  className="small-video"
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Main: remote video, Overlay: local video */}
+              <video
+                ref={remoteMediaRef}
+                autoPlay
+                playsInline
+                className="main-video"
+              />
+              <div className="overlay-video" onClick={handleSwap}>
+                <video
+                  ref={localMediaRef}
+                  autoPlay
+                  muted
+                  playsInline
+                  className="small-video"
+                />
+              </div>
+            </>
+          )}
         </div>
         <div className="call-status">
           <p className={`status-text ${callStatus === "Connected" ? "status-connected" : ""}`}>
@@ -538,7 +570,7 @@ const CallOverlay = ({ action, username, initialRoomId, roomPassword, onClose })
   );
 };
 
-// CSS styles (original styling plus modal styles)
+// CSS styles (restoring original look, adjusted overlay height, swap layout, and modal styling)
 const styles = `
   /* Main page styling */
   .page-container {
@@ -662,42 +694,38 @@ const styles = `
     margin: 0;
     font-size: 0.85rem;
   }
+  /* Increase the media container height; adjusted from 80vh to 60vh */
   .media-container {
     position: relative;
     margin-bottom: 2rem;
     border-radius: 12px;
     overflow: hidden;
     background: #111827;
-    aspect-ratio: 16 / 9;
+    height: 60vh;
+    width: 100%;
   }
-  .local-video {
+  /* Main video fills container */
+  .main-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  /* Small overlay video */
+  .overlay-video {
     position: absolute;
     top: 1rem;
     right: 1rem;
-    width: 120px;
-    height: 90px;
-    border-radius: 8px;
+    width: 200px;
+    height: 150px;
     border: 2px solid #3B82F6;
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+  }
+  .small-video {
+    width: 100%;
+    height: 100%;
     object-fit: cover;
-    z-index: 10;
-    transition: opacity 0.3s ease;
-  }
-  .video-disabled {
-    opacity: 0.5;
-  }
-  .remote-media-wrapper {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.3s ease;
-  }
-  .remote-video {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    background: #000;
   }
   .call-status {
     text-align: center;
@@ -756,7 +784,7 @@ const styles = `
   }
   @media (max-width: 640px) {
     .call-container { padding: 1rem; }
-    .local-video { width: 80px; height: 60px; }
+    .overlay-video { width: 120px; height: 90px; top: 0.5rem; right: 0.5rem; }
     .control-button { width: 40px; height: 40px; font-size: 1.1rem; }
   }
   /* Modal styles */
