@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { FiVideo, FiPhone, FiX } from "react-icons/fi";
+import { FiVideo, FiPhone, FiX, FiMic, FiMicOff, FiVideoOff } from "react-icons/fi";
 import { supabase } from "../supabaseClient";
 import { v4 as uuidv4 } from "uuid";
 
@@ -7,86 +7,57 @@ const VideoVoicePage = () => {
   const [showCallOverlay, setShowCallOverlay] = useState(false);
   const [callType, setCallType] = useState(null); // "video" or "voice"
   const [action, setAction] = useState(null); // "start" or "join"
-  // For passing room credentials to the overlay:
   const [callRoomId, setCallRoomId] = useState("");
   const [callRoomPassword, setCallRoomPassword] = useState("");
   const username = localStorage.getItem("chatUsername") || "Anonymous";
+
+  // Complete audio wave SVG data (for reference)
+  const audioWaveSvg = `data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA4MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICAgIDxnIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzNCODJGNiIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiPgogICAgICA8cGF0aCBjbGFzcz0id2F2ZTEiIGQ9Ik0xIDIwIHY2IGgtMSB2LTYiIC8+CiAgICAgIDxwYXRoIGNsYXNzPSJ3YXZlMiIgZD0iTTUgMTAgdjIwIGgtMSB2LTIwIiAvPgogICAgICA8cGF0aCBjbGFzcz0id2F2ZTMiIGQ9Ik0xMCA1IHYzMCBoLTEgdi0zMCIgLz4KICAgICAgPHBhdGggY2xhc3M9IndhdmU0IiBkPSJNMTUgMTAgdjIwIGgtMSB2LTIwIiAvPgogICAgICA8cGF0aCBjbGFzcz0id2F2ZTUiIGQ9Ik0yMCAxNSB2MTAgaC0xIHYtMTAiIC8+CiAgICAgIDxwYXRoIGNsYXNzPSJ3YXZlNiIgZD0iTTI1IDUgdjMwIGgtMSB2LTMwIiAvPgogICAgICA8cGF0aCBjbGFzcz0id2F2ZTciIGQ9Ik0zMCAxMCB2MjAgaC0xIHYtMjAiIC8+CiAgICAgIDxwYXRoIGNsYXNzPSJ3YXZlOCIgZD0iTTM1IDE1IHYxMCBoLTEgdi0xMCIgLz4KICAgICAgPHBhdGggY2xhc3M9IndhdmU5IiBkPSJNNDAgNSB2MzAgaC0xIHYtMzAiIC8+CiAgICAgIDxwYXRoIGNsYXNzPSJ3YXZlMTAiIGQ9Ik00NSAxMCB2MjAgaC0xIHYtMjAiIC8+CiAgICAgIDxwYXRoIGNsYXNzPSJ3YXZlMTEiIGQ9Ik01MCAxNSB2MTAgaC0xIHYtMTAiIC8+CiAgICAgIDxwYXRoIGNsYXNzPSJ3YXZlMTIiIGQ9Ik01NSA1IHYzMCBoLTEgdi0zMCIgLz4KICAgICAgPHBhdGggY2xhc3M9IndhdmUxMyIgZD0iTTYwIDEwIHYyMCBoLTEgdi0yMCIgLz4KICAgICAgPHBhdGggY2xhc3M9IndhdmUxNCIgZD0iTTY1IDE1IHYxMCBoLTEgdi0xMCIgLz4KICAgICAgPHBhdGggY2xhc3M9IndhdmUxNSIgZD0iTTcwIDUgdjMwIGgtMSB2LTMwIiAvPgogICAgICA8cGF0aCBjbGFzcz0id2F2ZTE2IiBkPSJNNzUgMTUgdjEwIGgtMSB2LTEwIiAvPgogICAgICA8cGF0aCBjbGFzcz0id2F2ZTE3IiBkPSJNODAgMjAgdjYgaC0xIHYtNiIgLz4KICAgIDwvZz4KICAgIDxzdHlsZT4KICAgICAgLndhdmUxLCAud2F2ZTQsIC53YXZlNywgLndhdmUxMCwgLndhdmUxMywgLndhdmUxNiB7CiAgICAgICAgYW5pbWF0aW9uOiB3YXZlMSAxLjVzIGluZmluaXRlIGVhc2UtaW4tb3V0OwogICAgICB9CiAgICAgIC53YXZlMiwgLndhdmU1LCAud2F2ZTgsIC53YXZlMTEsIC53YXZlMTQsIC53YXZlMTcgewogICAgICAgIGFuaW1hdGlvbjogd2F2ZTIgMS44cyBpbmZpbml0ZSBlYXNlLWluLW91dDsKICAgICAgfQogICAgICAud2F2ZTMsIC53YXZlNiwgLndhdmU5LCAud2F2ZTEyLCAud2F2ZTE1IHsKICAgICAgICBhbmltYXRpb246IHdhdmUzIDEuMnMgaW5maW5pdGUgZWFzZS1pbi1vdXQ7CiAgICAgIH0KCiAgICAgIEBrZXlmcmFtZXMgd2F2ZTEgewogICAgICAgIDAlIHsgdHJhbnNmb3JtOiB0cmFuc2xhdGVZKDApOyB9CiAgICAgICAgNTAlIHsgdHJhbnNmb3JtOiB0cmFuc2xhdGVZKC01cHgpOyB9CiAgICAgICAgMTAwJSB7IHRyYW5zZm9ybTogdHJhbnNsYXRlWSgwKTsgfQogICAgICB9CiAgICAgIEBrZXlmcmFtZXMgd2F2ZTIgewogICAgICAgIDAlIHsgdHJhbnNmb3JtOiB0cmFuc2xhdGVZKC01cHgpOyB9CiAgICAgICAgNTAlIHsgdHJhbnNmb3JtOiB0cmFuc2xhdGVZKDApOyB9CiAgICAgICAgMTAwJSB7IHRyYW5zZm9ybTogdHJhbnNsYXRlWSgtNXB4KTsgfQogICAgICB9CiAgICAgIEBrZXlmcmFtZXMgd2F2ZTMgewogICAgICAgIDAlIHsgdHJhbnNmb3JtOiB0cmFuc2xhdGVZKC0zcHgpOyB9CiAgICAgICAgNTAlIHsgdHJhbnNmb3JtOiB0cmFuc2xhdGVZKDNweCk7IH0KICAgICAgICAxMDAlIHsgdHJhbnNmb3JtOiB0cmFuc2xhdGVZKC0zcHgpOyB9CiAgICAgIH0KICAgIDwvc3R5bGU+Cjwvc3ZnPg==`;
+
+  const handleStartCall = (type) => {
+    const roomPass = window.prompt("Enter a room password for your call:");
+    if (!roomPass) return;
+
+    const newRoomId = uuidv4();
+    setCallRoomId(newRoomId);
+    setCallRoomPassword(roomPass);
+    setCallType(type);
+    setAction("start");
+    setShowCallOverlay(true);
+  };
+
+  const handleJoinCall = (type) => {
+    const roomIdInput = window.prompt("Enter the Room ID:");
+    if (!roomIdInput) return;
+
+    const roomPassInput = window.prompt("Enter the Room Password:");
+    if (!roomPassInput) return;
+
+    setCallRoomId(roomIdInput);
+    setCallRoomPassword(roomPassInput);
+    setCallType(type);
+    setAction("join");
+    setShowCallOverlay(true);
+  };
 
   return (
     <div className="page-container">
       <div className="card">
         <h2 className="title">Connect Now</h2>
         <div className="button-group">
-          {/* Start Video Chat */}
-          <button
-            className="chat-button video"
-            onClick={() => {
-              const roomPass = window.prompt("Enter a room password for your call:");
-              if (roomPass) {
-                // Always generate a fresh room ID when starting
-                const newRoomId = uuidv4();
-                setCallRoomId(newRoomId);
-                setCallRoomPassword(roomPass);
-                setCallType("video");
-                setAction("start");
-                setShowCallOverlay(true);
-              }
-            }}
-          >
+          <button className="chat-button video" onClick={() => handleStartCall("video")}>
             <FiVideo className="icon" />
             Start Video Chat
           </button>
-          {/* Join Video Chat */}
-          <button
-            className="chat-button video"
-            onClick={() => {
-              const roomIdInput = window.prompt("Enter the Room ID:");
-              const roomPassInput = window.prompt("Enter the Room Password:");
-              if (roomIdInput && roomPassInput) {
-                setCallRoomId(roomIdInput);
-                setCallRoomPassword(roomPassInput);
-                setCallType("video");
-                setAction("join");
-                setShowCallOverlay(true);
-              }
-            }}
-          >
+          <button className="chat-button video" onClick={() => handleJoinCall("video")}>
             <FiVideo className="icon" />
             Join Video Chat
           </button>
-          {/* Start Voice Chat */}
-          <button
-            className="chat-button voice"
-            onClick={() => {
-              const roomPass = window.prompt("Enter a room password for your call:");
-              if (roomPass) {
-                const newRoomId = uuidv4();
-                setCallRoomId(newRoomId);
-                setCallRoomPassword(roomPass);
-                setCallType("voice");
-                setAction("start");
-                setShowCallOverlay(true);
-              }
-            }}
-          >
+          <button className="chat-button voice" onClick={() => handleStartCall("voice")}>
             <FiPhone className="icon" />
             Start Voice Chat
           </button>
-          {/* Join Voice Chat */}
-          <button
-            className="chat-button voice"
-            onClick={() => {
-              const roomIdInput = window.prompt("Enter the Room ID:");
-              const roomPassInput = window.prompt("Enter the Room Password:");
-              if (roomIdInput && roomPassInput) {
-                setCallRoomId(roomIdInput);
-                setCallRoomPassword(roomPassInput);
-                setCallType("voice");
-                setAction("join");
-                setShowCallOverlay(true);
-              }
-            }}
-          >
+          <button className="chat-button voice" onClick={() => handleJoinCall("voice")}>
             <FiPhone className="icon" />
             Join Voice Chat
           </button>
@@ -113,188 +84,249 @@ const isValidUUID = (id) => {
 
 const CallOverlay = ({
   callType,
-  action, // "start" or "join"
+  action,
   username,
   initialRoomId,
   roomPassword,
   onClose,
 }) => {
+  // State management
   const [callStatus, setCallStatus] = useState("initializing");
-  const [isCaller, setIsCaller] = useState(false);
+  const [isCaller, setIsCaller] = useState(action === "join");
   const [displayRoomId, setDisplayRoomId] = useState("");
+  const [audioEnabled, setAudioEnabled] = useState(true);
+  const [videoEnabled, setVideoEnabled] = useState(callType === "video");
+
+  // Refs
   const localMediaRef = useRef(null);
   const remoteMediaRef = useRef(null);
   const peerConnection = useRef(null);
-  const channel = useRef(null);
-  const iceCandidateBuffer = useRef([]);
-  const incomingIceBuffer = useRef([]); // Buffer for incoming ICE candidates until remote description is set.
-  const roomId = useRef("");
+  const localStream = useRef(null);
+  const channelRef = useRef(null);
+  const roomIdRef = useRef(initialRoomId);
+  const iceCandidatesQueue = useRef([]);
+  const iceGatheringComplete = useRef(false);
+  const signallingComplete = useRef(false);
+
   const mediaConstraints = {
     audio: true,
     video: callType === "video" ? { facingMode: "user" } : false,
   };
 
-  // Cleanup on unmount
+  // Initialize WebRTC and signaling
   useEffect(() => {
-    return () => {
-      if (peerConnection.current) {
-        peerConnection.current.close();
+    const initialize = async () => {
+      try {
+        if (action !== "start" && action !== "join") {
+          setCallStatus("Invalid action");
+          return;
+        }
+
+        // Initialize RTCPeerConnection with STUN servers
+        peerConnection.current = new RTCPeerConnection({
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+          ]
+        });
+
+        // Set up event handlers
+        setupPeerConnectionListeners();
+
+        // Get user media
+        await setupLocalMedia();
+
+        // Initialize call based on action type
+        if (action === "start") {
+          await createNewCall();
+        } else if (action === "join") {
+          await joinExistingCall();
+        }
+      } catch (error) {
+        console.error("Call initialization error:", error);
+        setCallStatus(`Failed to initialize call: ${error.message}`);
       }
-      if (channel.current) {
-        supabase.removeChannel(channel.current);
-      }
-      stopMediaTracks();
     };
+
+    initialize();
+
+    // Cleanup function
+    return () => {
+      cleanupCall();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const stopMediaTracks = () => {
-    if (localMediaRef.current?.srcObject) {
-      localMediaRef.current.srcObject.getTracks().forEach((track) => track.stop());
-    }
-    if (remoteMediaRef.current?.srcObject) {
-      remoteMediaRef.current.srcObject.getTracks().forEach((track) => track.stop());
-    }
+  const setupPeerConnectionListeners = () => {
+    const pc = peerConnection.current;
+
+    // ICE candidate event
+    pc.onicecandidate = ({ candidate }) => {
+      if (candidate) {
+        handleLocalIceCandidate(candidate);
+      } else {
+        console.log("ICE gathering complete");
+        iceGatheringComplete.current = true;
+      }
+    };
+
+    // ICE connection state change
+    pc.oniceconnectionstatechange = () => {
+      console.log("ICE connection state:", pc.iceConnectionState);
+      if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+        setCallStatus("Connected");
+      } else if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
+        setCallStatus("Connection failed. Try again.");
+      }
+    };
+
+    // Track event - for receiving remote streams
+    pc.ontrack = (event) => {
+      console.log("Received remote track:", event.track.kind);
+      if (!remoteMediaRef.current.srcObject) {
+        const newStream = new MediaStream();
+        remoteMediaRef.current.srcObject = newStream;
+      }
+      event.track.onunmute = () => {
+        console.log("Track unmuted:", event.track.kind);
+      };
+      remoteMediaRef.current.srcObject.addTrack(event.track);
+      setCallStatus("Connected");
+    };
+
+    // Signaling state change
+    pc.onsignalingstatechange = () => {
+      console.log("Signaling state:", pc.signalingState);
+      if (pc.signalingState === 'stable') {
+        signallingComplete.current = true;
+        processIceCandidateQueue();
+      }
+    };
   };
 
-  const sendIceCandidate = async (candidate) => {
+  const setupLocalMedia = async () => {
     try {
-      if (!isValidUUID(roomId.current)) {
-        console.error("Invalid room ID when sending ICE candidate");
-        return;
+      localStream.current = await navigator.mediaDevices.getUserMedia(mediaConstraints);
+      if (localMediaRef.current) {
+        localMediaRef.current.srcObject = localStream.current;
       }
-      const { error } = await supabase.from("ice_candidates").insert({
-        room_id: roomId.current,
-        candidate: candidate.toJSON(),
+      localStream.current.getTracks().forEach(track => {
+        peerConnection.current.addTrack(track, localStream.current);
       });
-      if (error) throw error;
+      setCallStatus("Media access granted");
+      return true;
     } catch (error) {
-      console.error("Failed to send ICE candidate:", error);
+      console.error("Media access error:", error);
+      setCallStatus(`Media access denied: ${error.message}`);
+      return false;
     }
   };
 
-  const flushIceCandidates = () => {
-    iceCandidateBuffer.current.forEach((candidate) => {
-      if (isValidUUID(roomId.current)) {
-        sendIceCandidate(candidate);
-      }
-    });
-    iceCandidateBuffer.current = [];
-  };
-
-  const flushIncomingIceBuffer = async () => {
-    for (const candidate of incomingIceBuffer.current) {
-      try {
-        await peerConnection.current.addIceCandidate(candidate);
-      } catch (e) {
-        console.error("Error flushing incoming ICE candidate:", e);
-      }
-    }
-    incomingIceBuffer.current = [];
-  };
-
-  // JOIN: Check that the provided room ID is valid, then query for an existing call row.
-  const joinCall = async () => {
-    if (!isValidUUID(initialRoomId)) {
-      setCallStatus("Invalid room ID format.");
-      return;
-    }
-    roomId.current = initialRoomId;
-    setCallStatus("Connecting to peer...");
-    const { data: existingCalls, error } = await supabase
-      .from("calls")
-      .select("*")
-      .eq("id", initialRoomId)
-      .eq("room_password", roomPassword)
-      .eq("status", "waiting")
-      .limit(1);
-    if (error) {
-      console.error("Error checking for existing call:", error);
-      setCallStatus("Error checking call status");
-      return;
-    }
-    if (existingCalls?.length > 0) {
-      await handleExistingCall(existingCalls[0]);
-    } else {
-      setCallStatus("No available call found with that Room ID/Password");
-    }
-  };
-
-  // START: Create a new call row using a fresh room ID.
+  // Use upsert to prevent duplicate key errors and remove updated_at
   const createNewCall = async () => {
     try {
-      const newRoomId = uuidv4();
-      roomId.current = newRoomId;
-      setDisplayRoomId(newRoomId);
       setIsCaller(false);
-      const { error } = await supabase.from("calls").insert({
+      const newRoomId = initialRoomId || uuidv4();
+      roomIdRef.current = newRoomId;
+      setDisplayRoomId(newRoomId);
+
+      // Upsert call record in database to avoid duplicate key errors
+      const { error } = await supabase.from("calls").upsert({
         id: newRoomId,
         status: "waiting",
         type: callType,
         caller: username,
         room_password: roomPassword,
+        created_at: new Date().toISOString()
       });
+
       if (error) throw error;
+
+      // Set up signaling channel
       setupSignalingChannel(newRoomId);
-      setCallStatus("Waiting for peer...");
-      flushIceCandidates();
+      setCallStatus("Waiting for peer to join...");
     } catch (error) {
       console.error("Failed to create call:", error);
-      setCallStatus("Failed to create call");
+      setCallStatus(`Failed to create call: ${error.message}`);
     }
   };
 
-  // For joining: create an offer and update the call row.
-  const handleExistingCall = async (existingCall) => {
+  const joinExistingCall = async () => {
     try {
-      if (!isValidUUID(existingCall.id)) {
-        throw new Error("Invalid existing call ID");
+      if (!isValidUUID(initialRoomId)) {
+        setCallStatus("Invalid room ID format");
+        return;
       }
-      roomId.current = existingCall.id;
+
+      roomIdRef.current = initialRoomId;
       setIsCaller(true);
-      setCallStatus("Connecting to peer...");
+
+      // Check if call exists and is available
+      const { data: existingCalls, error } = await supabase
+        .from("calls")
+        .select("*")
+        .eq("id", initialRoomId)
+        .eq("room_password", roomPassword)
+        .eq("status", "waiting")
+        .limit(1);
+
+      if (error) throw error;
+      if (!existingCalls || existingCalls.length === 0) {
+        setCallStatus("No available call found with that Room ID/Password");
+        return;
+      }
+
+      // Set up signaling channel before creating offer
+      setupSignalingChannel(initialRoomId);
+
+      // Create and send offer
       const offer = await peerConnection.current.createOffer();
       await peerConnection.current.setLocalDescription(offer);
-      const { error } = await supabase
+
+      // Update call with offer; remove updated_at field
+      const { error: updateError } = await supabase
         .from("calls")
         .update({
           status: "negotiating",
           offer: offer.sdp,
-          callee: username,
+          callee: username
         })
-        .eq("id", existingCall.id);
-      if (error) throw error;
-      setupSignalingChannel(existingCall.id);
-      flushIceCandidates();
+        .eq("id", initialRoomId);
+
+      if (updateError) throw updateError;
+
+      setCallStatus("Offer sent, waiting for answer...");
     } catch (error) {
-      console.error("Failed to handle existing call:", error);
-      setCallStatus("Connection failed");
+      console.error("Failed to join call:", error);
+      setCallStatus(`Failed to join call: ${error.message}`);
     }
   };
 
-  // Setup realtime signaling channel.
-  const setupSignalingChannel = (room) => {
-    channel.current = supabase
-      .channel(`room-${room}`)
+  const setupSignalingChannel = (roomId) => {
+    channelRef.current = supabase
+      .channel(`room-${roomId}`)
       .on(
         "postgres_changes",
         {
           event: "UPDATE",
           schema: "public",
           table: "calls",
-          filter: `id=eq.${room}`,
+          filter: `id=eq.${roomId}`,
         },
         async (payload) => {
-          console.log("Received call update:", payload);
-          const { new: callData } = payload;
-          // If joining (caller) and answer is received, set remote description.
-          if (isCaller && callData.answer) {
-            await handleAnswer(callData.answer);
-            await flushIncomingIceBuffer();
-          }
-          // If starting (waiting user) and an offer appears, answer it.
-          if (!isCaller && callData.offer) {
-            await handleOffer(callData.offer);
-            await flushIncomingIceBuffer();
+          try {
+            console.log("Call update received:", payload);
+            const { new: callData } = payload;
+            if (isCaller && callData.answer && callData.status === "active") {
+              await handleRemoteAnswer(callData.answer);
+            }
+            if (!isCaller && callData.offer && callData.status === "negotiating") {
+              await handleRemoteOffer(callData.offer);
+            }
+          } catch (error) {
+            console.error("Error handling signaling message:", error);
+            setCallStatus("Signaling error");
           }
         }
       )
@@ -304,27 +336,24 @@ const CallOverlay = ({
           event: "INSERT",
           schema: "public",
           table: "ice_candidates",
-          filter: `room_id=eq.${room}`,
+          filter: `room_id=eq.${roomId}`,
         },
         async (payload) => {
-          console.log("Received ICE candidate:", payload);
-          const { new: candidateData } = payload;
           try {
-            const candidate = new RTCIceCandidate(candidateData.candidate);
-            if (!peerConnection.current.remoteDescription) {
-              incomingIceBuffer.current.push(candidate);
-            } else {
-              await peerConnection.current.addIceCandidate(candidate);
-            }
+            console.log("ICE candidate received:", payload);
+            const { new: candidateData } = payload;
+            await handleRemoteIceCandidate(candidateData.candidate);
           } catch (error) {
-            console.error("Error adding ICE candidate:", error);
+            console.error("Error handling ICE candidate:", error);
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log("Channel subscription status:", status);
+      });
   };
 
-  const handleOffer = async (offerSdp) => {
+  const handleRemoteOffer = async (offerSdp) => {
     try {
       await peerConnection.current.setRemoteDescription({
         type: "offer",
@@ -336,92 +365,165 @@ const CallOverlay = ({
         .from("calls")
         .update({
           answer: answer.sdp,
-          status: "active",
+          status: "active"
         })
-        .eq("id", roomId.current);
+        .eq("id", roomIdRef.current);
       if (error) throw error;
-      setCallStatus("Connected");
+      setCallStatus("Answer sent, establishing connection...");
+      processIceCandidateQueue();
     } catch (error) {
       console.error("Error handling offer:", error);
-      setCallStatus("Connection failed");
+      setCallStatus("Failed to process offer");
     }
   };
 
-  const handleAnswer = async (answerSdp) => {
+  const handleRemoteAnswer = async (answerSdp) => {
     try {
       await peerConnection.current.setRemoteDescription({
         type: "answer",
         sdp: answerSdp,
       });
-      setCallStatus("Connected");
+      setCallStatus("Answer received, establishing connection...");
+      processIceCandidateQueue();
     } catch (error) {
       console.error("Error handling answer:", error);
-      setCallStatus("Connection failed");
+      setCallStatus("Failed to process answer");
     }
   };
 
-  // Main initialization – differs based on action.
-  const initializeCall = async () => {
+  const handleLocalIceCandidate = async (candidate) => {
     try {
-      setCallStatus("Connecting...");
-      const stream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
-      localMediaRef.current.srcObject = stream;
-      peerConnection.current = new RTCPeerConnection({
-        iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-      });
-      stream.getTracks().forEach((track) => {
-        peerConnection.current.addTrack(track, stream);
-      });
-      peerConnection.current.onicecandidate = ({ candidate }) => {
-        if (candidate) {
-          if (isValidUUID(roomId.current)) {
-            sendIceCandidate(candidate);
-          } else {
-            iceCandidateBuffer.current.push(candidate);
-          }
-        }
-      };
-      // Accumulate remote tracks in a MediaStream.
-      peerConnection.current.ontrack = (event) => {
-        if (!remoteMediaRef.current.srcObject) {
-          remoteMediaRef.current.srcObject = new MediaStream();
-        }
-        remoteMediaRef.current.srcObject.addTrack(event.track);
-        setCallStatus("Connected");
-      };
-
-      if (action === "join") {
-        await joinCall();
-      } else if (action === "start") {
-        await createNewCall();
+      const roomId = roomIdRef.current;
+      if (!isValidUUID(roomId)) {
+        iceCandidatesQueue.current.push(candidate);
+        return;
       }
-    } catch (err) {
-      console.error("Call initialization failed:", err);
-      setCallStatus("Connection failed");
+      await sendIceCandidate(candidate);
+    } catch (error) {
+      console.error("Error handling local ICE candidate:", error);
     }
   };
 
-  useEffect(() => {
-    if (callStatus === "initializing") {
-      initializeCall();
+  const sendIceCandidate = async (candidate) => {
+    try {
+      const { error } = await supabase.from("ice_candidates").insert({
+        room_id: roomIdRef.current,
+        candidate: candidate.toJSON(),
+        created_at: new Date().toISOString()
+      });
+      if (error) throw error;
+    } catch (error) {
+      console.error("Failed to send ICE candidate:", error);
+      iceCandidatesQueue.current.push(candidate);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  };
+
+  const handleRemoteIceCandidate = async (candidateData) => {
+    try {
+      const candidate = new RTCIceCandidate(candidateData);
+      if (peerConnection.current.remoteDescription) {
+        await peerConnection.current.addIceCandidate(candidate);
+      } else {
+        iceCandidatesQueue.current.push(candidate);
+      }
+    } catch (error) {
+      console.error("Error adding remote ICE candidate:", error);
+    }
+  };
+
+  const processIceCandidateQueue = async () => {
+    if (
+      peerConnection.current.remoteDescription &&
+      iceCandidatesQueue.current.length > 0
+    ) {
+      console.log(`Processing ${iceCandidatesQueue.current.length} queued ICE candidates`);
+      const candidates = [...iceCandidatesQueue.current];
+      iceCandidatesQueue.current = [];
+      for (const candidate of candidates) {
+        try {
+          if (candidate instanceof RTCIceCandidate) {
+            await peerConnection.current.addIceCandidate(candidate);
+          } else {
+            await sendIceCandidate(candidate);
+          }
+        } catch (error) {
+          console.error("Error processing queued candidate:", error);
+          iceCandidatesQueue.current.push(candidate);
+        }
+      }
+    }
+  };
+
+  const toggleAudio = () => {
+    if (localStream.current) {
+      const audioTracks = localStream.current.getAudioTracks();
+      audioTracks.forEach(track => {
+        track.enabled = !audioEnabled;
+      });
+      setAudioEnabled(!audioEnabled);
+    }
+  };
+
+  const toggleVideo = () => {
+    if (localStream.current && callType === "video") {
+      const videoTracks = localStream.current.getVideoTracks();
+      videoTracks.forEach(track => {
+        track.enabled = !videoEnabled;
+      });
+      setVideoEnabled(!videoEnabled);
+    }
+  };
+
+  // Remove updated_at field from cleanup
+  const cleanupCall = () => {
+    if (localStream.current) {
+      localStream.current.getTracks().forEach(track => track.stop());
+    }
+    if (peerConnection.current) {
+      peerConnection.current.close();
+    }
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+    }
+    if (roomIdRef.current && isValidUUID(roomIdRef.current)) {
+      supabase
+        .from("calls")
+        .update({
+          status: "ended"
+        })
+        .eq("id", roomIdRef.current)
+        .then(({ error }) => {
+          if (error) console.error("Error updating call status:", error);
+        });
+    }
+  };
+
+  const handleCloseCall = () => {
+    cleanupCall();
+    onClose();
+  };
 
   return (
     <div className="overlay">
       <div className="call-container">
         <div className="call-header">
           <h3>{callType === "video" ? "Video Call" : "Voice Call"}</h3>
-          <button onClick={onClose} className="close-button">
+          <button onClick={handleCloseCall} className="close-button">
             <FiX />
           </button>
         </div>
+
         {action === "start" && displayRoomId && (
-          <p className="room-id" style={{ marginBottom: "1rem", color: "#FFF" }}>
-            Your Room ID: {displayRoomId}
-          </p>
+          <div className="room-info">
+            <p className="room-id">
+              Your Room ID: <span className="room-id-value">{displayRoomId}</span>
+            </p>
+            <p className="helper-text">
+              Share this ID and your password with others to join
+            </p>
+          </div>
         )}
+
         <div className="media-container">
           {callType === "video" && (
             <video
@@ -429,40 +531,69 @@ const CallOverlay = ({
               autoPlay
               muted
               playsInline
-              className="local-video"
+              className={`local-video ${!videoEnabled ? 'video-disabled' : ''}`}
             />
           )}
-          <video
-            ref={remoteMediaRef}
-            autoPlay
-            playsInline
-            className={`remote-media ${callType === "voice" ? "audio-only" : ""}`}
-          />
-        </div>
-        <div className="call-controls">
-          <p className="status">{callStatus}</p>
-          {callStatus === "No available call found with that Room ID/Password" && (
-            <p className="status" style={{ color: "red" }}>
-              Please check the Room ID and Password.
-            </p>
-          )}
-          {!callStatus.includes("Connected") &&
-            callStatus !== "No available call found with that Room ID/Password" && (
-              <button
-                className="connect-button"
-                onClick={initializeCall}
-                disabled={callStatus === "Connecting..."}
-              >
-                {callStatus === "initializing" ? "Start Call" : "Connecting..."}
-              </button>
+
+          <div className={`remote-media-wrapper ${callStatus === "Connected" ? 'connected' : ''}`}>
+            {callType === "voice" ? (
+              <div className="audio-only-container">
+                <div className="audio-indicator">
+                  <span className="audio-wave"></span>
+                  <p>Voice Call</p>
+                </div>
+                <audio ref={remoteMediaRef} autoPlay playsInline />
+              </div>
+            ) : (
+              <video
+                ref={remoteMediaRef}
+                autoPlay
+                playsInline
+                className="remote-video"
+              />
             )}
+          </div>
+        </div>
+
+        <div className="call-status">
+          <p className={`status-text ${callStatus === "Connected" ? 'status-connected' : ''}`}>
+            {callStatus}
+          </p>
+        </div>
+
+        <div className="call-controls">
+          <button
+            className={`control-button ${audioEnabled ? 'active' : 'muted'}`}
+            onClick={toggleAudio}
+            title={audioEnabled ? "Mute" : "Unmute"}
+          >
+            {audioEnabled ? <FiMic /> : <FiMicOff />}
+          </button>
+
+          {callType === "video" && (
+            <button
+              className={`control-button ${videoEnabled ? 'active' : 'disabled'}`}
+              onClick={toggleVideo}
+              title={videoEnabled ? "Turn off camera" : "Turn on camera"}
+            >
+              {videoEnabled ? <FiVideo /> : <FiVideoOff />}
+            </button>
+          )}
+
+          <button
+            className="control-button end-call"
+            onClick={handleCloseCall}
+            title="End call"
+          >
+            <FiPhone />
+          </button>
         </div>
       </div>
     </div>
   );
 };
 
-// Injected CSS styles
+// Complete CSS styles with the fixed ".audio-wave" selector
 const styles = `
   .page-container {
     background: #0E1422;
@@ -473,6 +604,7 @@ const styles = `
     padding: 1rem;
     font-family: 'Comfortaa', sans-serif;
   }
+  
   .card {
     background: #1A1F2E;
     border-radius: 24px;
@@ -482,15 +614,18 @@ const styles = `
     text-align: center;
     box-shadow: 0 8px 24px rgba(0,0,0,0.2);
   }
+  
   .title {
     color: #FFF;
     font-size: 1.8rem;
     margin-bottom: 2rem;
   }
+  
   .button-group {
     display: grid;
     gap: 1rem;
   }
+  
   .chat-button {
     display: flex;
     align-items: center;
@@ -503,13 +638,23 @@ const styles = `
     color: #FFF;
     cursor: pointer;
     transition: all 0.3s ease;
+    font-weight: 500;
   }
+  
   .chat-button:hover {
     background: #3B82F6;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(59, 130, 246, 0.3);
   }
+  
+  .chat-button:active {
+    transform: translateY(0);
+  }
+  
   .icon {
     font-size: 1.4rem;
   }
+  
   .overlay {
     position: fixed;
     top: 0;
@@ -521,90 +666,229 @@ const styles = `
     justify-content: center;
     align-items: center;
     z-index: 1000;
+    backdrop-filter: blur(5px);
   }
+  
   .call-container {
     background: #1A1F2E;
     border-radius: 16px;
     padding: 2rem;
     width: 90%;
     max-width: 800px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
   }
+  
   .call-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 1.5rem;
+    color: #FFF;
   }
+  
+  .call-header h3 {
+    margin: 0;
+    font-size: 1.5rem;
+  }
+  
   .close-button {
     background: none;
     border: none;
     color: #FFF;
     font-size: 1.5rem;
     cursor: pointer;
+    opacity: 0.8;
+    transition: opacity 0.2s ease;
   }
+  
+  .close-button:hover {
+    opacity: 1;
+  }
+  
+  .room-info {
+    background: rgba(59, 130, 246, 0.15);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    text-align: center;
+  }
+  
+  .room-id {
+    color: #FFF;
+    margin: 0 0 0.5rem 0;
+    font-size: 1rem;
+  }
+  
+  .room-id-value {
+    font-weight: bold;
+    user-select: all;
+    background: rgba(255,255,255,0.1);
+    padding: 0.3rem 0.6rem;
+    border-radius: 4px;
+  }
+  
+  .helper-text {
+    color: rgba(255,255,255,0.7);
+    margin: 0;
+    font-size: 0.85rem;
+  }
+  
   .media-container {
     position: relative;
     margin-bottom: 2rem;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #111827;
+    aspect-ratio: 16 / 9;
   }
+  
   .local-video {
     position: absolute;
     top: 1rem;
     right: 1rem;
     width: 120px;
+    height: 90px;
     border-radius: 8px;
     border: 2px solid #3B82F6;
+    object-fit: cover;
+    z-index: 10;
+    transition: opacity 0.3s ease;
   }
-  .remote-media {
+  
+  .video-disabled {
+    opacity: 0.5;
+  }
+  
+  .remote-media-wrapper {
     width: 100%;
-    max-height: 60vh;
-    border-radius: 12px;
-    background: #000;
-  }
-  .audio-only {
-    background: #252C3F;
-    height: 200px;
+    height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.2rem;
+    transition: all 0.3s ease;
+  }
+  
+  .remote-video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #000;
+  }
+  
+  .audio-only-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(45deg, #1A1F2E, #252C3F);
+  }
+  
+  .audio-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     color: #3B82F6;
   }
-  .call-controls {
-    text-align: center;
+  
+  .audio-wave {
+    width: 80px;
+    height: 40px;
+    background: url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA4MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICAgIDxnIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzNCODJGNiIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiPgogICAgICA8cGF0aCBjbGFzcz0id2F2ZTEiIGQ9Ik0xIDIwIHY2IGgtMSB2LTYiIC8+CiAgICAgIDxwYXRoIGNsYXNzPSJ3YXZlMiIgZD0iTTUgMTAgdjIwIGgtMSB2LTIwIiAvPgogICAgICA8cGF0aCBjbGFzcz0id2F2ZTMiIGQ9Ik0xMCA1IHYzMCBoLTEgdi0zMCIgLz4KICAgICAgPHBhdGggY2xhc3M9IndhdmU0IiBkPSJNMTUgMTAgdjIwIGgtMSB2LTIwIiAvPgogICAgICA8cGF0aCBjbGFzcz0id2F2ZTUiIGQ9Ik0yMCAxNSB2MTAgaC0xIHYtMTAiIC8+CiAgICAgIDxwYXRoIGNsYXNzPSJ3YXZlNiIgZD0iTTI1IDUgdjMwIGgtMSB2LTMwIiAvPgogICAgICA8cGF0aCBjbGFzcz0id2F2ZTciIGQ9Ik0zMCAxMCB2MjAgaC0xIHYtMjAiIC8+CiAgICAgIDxwYXRoIGNsYXNzPSJ3YXZlOCIgZD0iTTM1IDE1IHYxMCBoLTEgdi0xMCIgLz4KICAgICAgPHBhdGggY2xhc3M9IndhdmU5IiBkPSJNNDAgNSB2MzAgaC0xIHYtMzAiIC8+CiAgICAgIDxwYXRoIGNsYXNzPSJ3YXZlMTAiIGQ9Ik00NSAxMCB2MjAgaC0xIHYtMjAiIC8+CiAgICAgIDxwYXRoIGNsYXNzPSJ3YXZlMTEiIGQ9Ik01MCAxNSB2MTAgaC0xIHYtMTAiIC8+CiAgICAgIDxwYXRoIGNsYXNzPSJ3YXZlMTIiIGQ9Ik01NSA1IHYzMCBoLTEgdi0zMCIgLz4KICAgICAgPHBhdGggY2xhc3M9IndhdmUxMyIgZD0iTTYwIDEwIHYyMCBoLTEgdi0yMCIgLz4KICAgICAgPHBhdGggY2xhc3M9IndhdmUxNCIgZD0iTTY1IDE1IHYxMCBoLTEgdi0xMCIgLz4KICAgICAgPHBhdGggY2xhc3M9IndhdmUxNSIgZD0iTTcwIDUgdjMwIGgtMSB2LTMwIiAvPgogICAgICA8cGF0aCBjbGFzcz0id2F2ZTE2IiBkPSJNNzUgMTUgdjEwIGgtMSB2LTEwIiAvPgogICAgICA8cGF0aCBjbGFzcz0id2F2ZTE3IiBkPSJNODAgMjAgdjYgaC0xIHYtNiIgLz4KICAgIDwvZz4KICAgIDxzdHlsZT4KICAgICAgLndhdmUxLCAud2F2ZTQsIC53YXZlNywgLndhdmUxMCwgLndhdmUxMywgLndhdmUxNiB7CiAgICAgICAgYW5pbWF0aW9uOiB3YXZlMSAxLjVzIGluZmluaXRlIGVhc2UtaW4tb3V0OwogICAgICB9CiAgICAgIC53YXZlMiwgLndhdmU1LCAud2F2ZTgsIC53YXZlMTEsIC53YXZlMTQsIC53YXZlMTcgewogICAgICAgIGFuaW1hdGlvbjogd2F2ZTIgMS44cyBpbmZpbml0ZSBlYXNlLWluLW91dDsKICAgICAgfQogICAgICAud2F2ZTMsIC53YXZlNiwgLndhdmU5LCAud2F2ZTEyLCAud2F2ZTE1IHsKICAgICAgICBhbmltYXRpb246IHdhdmUzIDEuMnMgaW5maW5pdGUgZWFzZS1pbi1vdXQ7CiAgICAgIH0KCiAgICAgIEBrZXlmcmFtZXMgd2F2ZTEgewogICAgICAgIDAlIHsgdHJhbnNmb3JtOiB0cmFuc2xhdGVZKDApOyB9CiAgICAgICAgNTAlIHsgdHJhbnNmb3JtOiB0cmFuc2xhdGVZKC01cHgpOyB9CiAgICAgICAgMTAwJSB7IHRyYW5zZm9ybTogdHJhbnNsYXRlWSgwKTsgfQogICAgICB9CiAgICAgIEBrZXlmcmFtZXMgd2F2ZTIgewogICAgICAgIDAlIHsgdHJhbnNmb3JtOiB0cmFuc2xhdGVZKC01cHgpOyB9CiAgICAgICAgNTAlIHsgdHJhbnNmb3JtOiB0cmFuc2xhdGVZKDApOyB9CiAgICAgICAgMTAwJSB7IHRyYW5zZm9ybTogdHJhbnNsYXRlWSgtNXB4KTsgfQogICAgICB9CiAgICAgIEBrZXlmcmFtZXMgd2F2ZTMgewogICAgICAgIDAlIHsgdHJhbnNmb3JtOiB0cmFuc2xhdGVZKC0zcHgpOyB9CiAgICAgICAgNTAlIHsgdHJhbnNmb3JtOiB0cmFuc2xhdGVZKDNweCk7IH0KICAgICAgICAxMDAlIHsgdHJhbnNmb3JtOiB0cmFuc2xhdGVZKC0zcHgpOyB9CiAgICAgIH0KICAgIDwvc3R5bGU+Cjwvc3ZnPg==");
+    background-repeat: no-repeat;
+    background-position: center;
+    margin-bottom: 8px;
   }
-  .status {
+  
+  .audio-indicator p {
     color: #FFF;
-    margin-bottom: 1rem;
+    margin: 0;
+    font-size: 1rem;
+    opacity: 0.8;
   }
-  .connect-button {
+  
+  .call-status {
+    text-align: center;
+    margin-bottom: 1.5rem;
+  }
+  
+  .status-text {
+    color: rgba(255,255,255,0.7);
+    margin: 0;
+    font-size: 0.9rem;
+    transition: color 0.3s ease;
+  }
+  
+  .status-connected {
+    color: #10B981;
+  }
+  
+  .call-controls {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+  }
+  
+  .control-button {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 1.3rem;
+  }
+  
+  .control-button.active {
     background: #3B82F6;
     color: #FFF;
-    border: none;
-    padding: 0.8rem 2rem;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: opacity 0.3s ease;
   }
-  .connect-button:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
+  
+  .control-button.muted,
+  .control-button.disabled {
+    background: #4B5563;
+    color: #FFF;
   }
-  @media (max-width: 480px) {
-    .card {
-      padding: 1.5rem;
-    }
-    .title {
-      font-size: 1.4rem;
-    }
-    .chat-button {
-      padding: 1rem;
-      font-size: 1rem;
-    }
+  
+  .control-button.end-call {
+    background: #EF4444;
+    color: #FFF;
+    transform: rotate(135deg);
+  }
+  
+  .control-button:hover {
+    transform: scale(1.1);
+  }
+  
+  .control-button.end-call:hover {
+    transform: rotate(135deg) scale(1.1);
+  }
+  
+  @keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+  }
+  
+  @media (max-width: 640px) {
     .call-container {
-      padding: 1.5rem;
+      padding: 1rem;
     }
-    .remote-media {
-      height: 50vh;
+    
+    .local-video {
+      width: 80px;
+      height: 60px;
+    }
+    
+    .control-button {
+      width: 40px;
+      height: 40px;
+      font-size: 1.1rem;
     }
   }
 `;
