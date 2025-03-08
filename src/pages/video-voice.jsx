@@ -126,6 +126,8 @@ const CallOverlay = ({
   const peerConnection = useRef(null);
   const channel = useRef(null);
   const iceCandidateBuffer = useRef([]);
+  // Buffer for incoming ICE candidates until remote description is set.
+  const incomingIceBuffer = useRef([]);
   const roomId = useRef("");
   const mediaConstraints = {
     audio: true,
@@ -179,7 +181,18 @@ const CallOverlay = ({
     iceCandidateBuffer.current = [];
   };
 
-  // JOIN: Validate room ID and then query for an existing call row.
+  const flushIncomingIceBuffer = async () => {
+    for (const candidate of incomingIceBuffer.current) {
+      try {
+        await peerConnection.current.addIceCandidate(candidate);
+      } catch (e) {
+        console.error("Error flushing incoming ICE candidate:", e);
+      }
+    }
+    incomingIceBuffer.current = [];
+  };
+
+  // For joining: verify room ID format, then query for an existing call row.
   const joinCall = async () => {
     if (!isValidUUID(initialRoomId)) {
       setCallStatus("Invalid room ID format.");
@@ -206,10 +219,10 @@ const CallOverlay = ({
     }
   };
 
-  // START: Create a new call row with a fresh room ID.
+  // For starting: always generate a fresh room id.
   const createNewCall = async () => {
     try {
-      const newRoomId = uuidv4(); // Always generate a new room id
+      const newRoomId = uuidv4(); // Generate new ID
       roomId.current = newRoomId;
       setDisplayRoomId(newRoomId);
       setIsCaller(false);
@@ -230,7 +243,7 @@ const CallOverlay = ({
     }
   };
 
-  // For joining: create an offer and update the call row.
+  // For joining: update the call row with an offer.
   const handleExistingCall = async (existingCall) => {
     try {
       if (!isValidUUID(existingCall.id)) {
@@ -276,10 +289,12 @@ const CallOverlay = ({
           // If joining (caller) and answer is received, set remote description.
           if (isCaller && callData.answer) {
             await handleAnswer(callData.answer);
+            await flushIncomingIceBuffer();
           }
           // If starting (waiting user) and an offer appears, answer it.
           if (!isCaller && callData.offer) {
             await handleOffer(callData.offer);
+            await flushIncomingIceBuffer();
           }
         }
       )
@@ -296,7 +311,11 @@ const CallOverlay = ({
           const { new: candidateData } = payload;
           try {
             const candidate = new RTCIceCandidate(candidateData.candidate);
-            await peerConnection.current.addIceCandidate(candidate);
+            if (!peerConnection.current.remoteDescription) {
+              incomingIceBuffer.current.push(candidate);
+            } else {
+              await peerConnection.current.addIceCandidate(candidate);
+            }
           } catch (error) {
             console.error("Error adding ICE candidate:", error);
           }
@@ -341,7 +360,7 @@ const CallOverlay = ({
     }
   };
 
-  // Main initialization – based on action ("start" vs "join")
+  // Main initialization – differs based on action.
   const initializeCall = async () => {
     try {
       setCallStatus("Connecting...");
@@ -362,7 +381,7 @@ const CallOverlay = ({
           }
         }
       };
-      // Updated ontrack: accumulate tracks manually in a MediaStream.
+      // Modified ontrack: accumulate incoming tracks into a MediaStream.
       peerConnection.current.ontrack = (event) => {
         if (!remoteMediaRef.current.srcObject) {
           remoteMediaRef.current.srcObject = new MediaStream();
