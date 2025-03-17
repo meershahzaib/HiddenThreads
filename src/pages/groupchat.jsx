@@ -138,7 +138,7 @@ const UsernameModal = ({ onUsernameSet }) => {
               className="px-2 py-1 bg-gray-700 rounded hover:bg-gray-600 transition-colors flex items-center gap-1"
             >
               
-              <span>Gᴇɴᴇʀᴀᴛᴇ ᴜsᴇʀɴᴀᴍᴇ</span>
+              <span>↻ Generate Username</span>
             </button>
           </div>
           {error && <div className="text-red-400 text-sm mt-2">{error}</div>}
@@ -219,7 +219,7 @@ const UsernameChangeModal = ({ currentUsername, onUsernameChange, onClose }) => 
               onClick={() => setNewUsername(generateRandomUsername())}
               className="px-2 py-1 bg-gray-700 rounded hover:bg-gray-600 transition-colors flex items-center gap-1"
             >
-              <span>Gᴇɴᴇʀᴀᴛᴇ ᴜsᴇʀɴᴀᴍᴇ</span>
+              <span>↻ Generate Username</span>
             </button>
           </div>
           {error && <div className="text-red-400 text-sm">{error}</div>}
