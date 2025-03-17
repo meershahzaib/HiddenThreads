@@ -1,20 +1,28 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { motion, AnimatePresence, useMotionValue } from "framer-motion";
-import { FaPaperclip, FaUser, FaArrowAltCircleRight, FaSync } from "react-icons/fa";
+import { FaPaperclip, FaUser, FaArrowAltCircleRight, FaMagic } from "react-icons/fa";
 import { FiCopy, FiSend, FiEdit } from "react-icons/fi";
 import { supabase } from "../supabaseClient";
 import { useSwipeable } from "react-swipeable";
 
-// ─── HELPER: RANDOM USERNAME GENERATOR ─────────────────────────────────────
-// Generates a random username between 8 and 10 characters (alphanumeric only)
-const generateRandomUsername = () => {
-  const length = Math.floor(Math.random() * 3) + 8; // 8, 9, or 10 characters
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let result = '';
-  for (let i = 0; i < length; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
+// ─── HELPER: ANONYMOUS USERNAME GENERATOR ──────────────────────────────────
+// Generates a random anonymous username using real words (an adjective + a noun)
+// ensuring the total length is between 8 and 10 characters.
+const generateAnonymousUsername = () => {
+  const adjectives = ["Calm", "Brave", "Misty", "Swift", "Quiet", "Frost", "Storm", "Arcane"
+, "Cryptic", "Enigmatic", "Shadow", "Mystic", "Phantom", "Nebulous", "Obscure", "Celestial", "Eerie", "Vesper", "Twilight", "Midnight", "Spectral", "Ghostly"];
+  const nouns = ["Fox", "Wolf", "Owl", "Hawk", "Bear", "Crow", "Lion", "Tiger", "Raven", "Serpent", "Eclipse", "Mirage", "Tempest", "Oracle", "Reaper", "Spirit", "Shade", "Wraith", "Enigma", "Cipher", "Labyrinth", "Crypt", "Obsidian"];
+  for (let i = 0; i < 10; i++) {
+    const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+    const noun = nouns[Math.floor(Math.random() * nouns.length)];
+    const username = `${adj}${noun}`;
+    if (username.length >= 8 && username.length <= 10) {
+      return username;
+    }
   }
-  return result;
+  // Fallback: if no valid combination is found, trim a longer one.
+  const fallback = `${adjectives[0]}${nouns[0]}`;
+  return fallback.substring(0, 10).padEnd(8, "0");
 };
 
 // ─── REPLY PREVIEW COMPONENT ─────────────────────────────────────────────
@@ -131,14 +139,14 @@ const UsernameModal = ({ onUsernameSet }) => {
             />
           </div>
           {/* Generate Username Button */}
-          <div className="flex justify-center gap-2 mt-2">
+          <div className="flex justify-center mt-2">
             <button
               type="button"
-              onClick={() => setTempUsername(generateRandomUsername())}
-              className="px-2 py-1 bg-gray-700 rounded hover:bg-gray-600 transition-colors flex items-center gap-1"
+              onClick={() => setTempUsername(generateAnonymousUsername())}
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-green-400 to-blue-500 rounded hover:from-green-500 hover:to-blue-600 transition-colors"
             >
-              
-              <span>↻ Generate Username</span>
+              <FaMagic size={18} />
+              <span>Generate Username</span>
             </button>
           </div>
           {error && <div className="text-red-400 text-sm mt-2">{error}</div>}
@@ -213,13 +221,14 @@ const UsernameChangeModal = ({ currentUsername, onUsernameChange, onClose }) => 
             className="w-full px-4 py-2 rounded bg-gray-800 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-700 transition-all duration-200"
           />
           {/* Generate Username Button */}
-          <div className="flex justify-center gap-2 mt-2">
+          <div className="flex justify-center mt-2">
             <button
               type="button"
-              onClick={() => setNewUsername(generateRandomUsername())}
-              className="px-2 py-1 bg-gray-700 rounded hover:bg-gray-600 transition-colors flex items-center gap-1"
+              onClick={() => setNewUsername(generateAnonymousUsername())}
+              className="flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-green-400 to-blue-500 rounded hover:from-green-500 hover:to-blue-600 transition-colors"
             >
-              <span>↻ Generate Username</span>
+              <FaMagic size={18} />
+              <span>Generate Username</span>
             </button>
           </div>
           {error && <div className="text-red-400 text-sm">{error}</div>}
