@@ -1,9 +1,21 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { motion, AnimatePresence, useMotionValue } from "framer-motion";
-import { FaPaperclip, FaUser, FaArrowAltCircleRight } from "react-icons/fa";
+import { FaPaperclip, FaUser, FaArrowAltCircleRight, FaSync } from "react-icons/fa";
 import { FiCopy, FiSend, FiEdit } from "react-icons/fi";
 import { supabase } from "../supabaseClient";
 import { useSwipeable } from "react-swipeable";
+
+// ─── HELPER: RANDOM USERNAME GENERATOR ─────────────────────────────────────
+// Generates a random username between 8 and 10 characters (alphanumeric only)
+const generateRandomUsername = () => {
+  const length = Math.floor(Math.random() * 3) + 8; // 8, 9, or 10 characters
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+};
 
 // ─── REPLY PREVIEW COMPONENT ─────────────────────────────────────────────
 const ReplyPreview = ({ originalMessage, onCancel }) => {
@@ -118,6 +130,17 @@ const UsernameModal = ({ onUsernameSet }) => {
               className="w-full px-4 py-2 rounded bg-gray-800 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-700 transition-all duration-200"
             />
           </div>
+          {/* Generate Username Button */}
+          <div className="flex justify-center gap-2 mt-2">
+            <button
+              type="button"
+              onClick={() => setTempUsername(generateRandomUsername())}
+              className="px-2 py-1 bg-gray-700 rounded hover:bg-gray-600 transition-colors flex items-center gap-1"
+            >
+              
+              <span>Gᴇɴᴇʀᴀᴛᴇ ᴜsᴇʀɴᴀᴍᴇ</span>
+            </button>
+          </div>
           {error && <div className="text-red-400 text-sm mt-2">{error}</div>}
           <motion.button
             whileHover={{ scale: 1.02 }}
@@ -189,6 +212,16 @@ const UsernameChangeModal = ({ currentUsername, onUsernameChange, onClose }) => 
             placeholder="New username"
             className="w-full px-4 py-2 rounded bg-gray-800 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-700 transition-all duration-200"
           />
+          {/* Generate Username Button */}
+          <div className="flex justify-center gap-2 mt-2">
+            <button
+              type="button"
+              onClick={() => setNewUsername(generateRandomUsername())}
+              className="px-2 py-1 bg-gray-700 rounded hover:bg-gray-600 transition-colors flex items-center gap-1"
+            >
+              <span>Gᴇɴᴇʀᴀᴛᴇ ᴜsᴇʀɴᴀᴍᴇ</span>
+            </button>
+          </div>
           {error && <div className="text-red-400 text-sm">{error}</div>}
           <div className="flex justify-center gap-2">
             <button
@@ -651,6 +684,7 @@ const Group = () => {
   const [showUsernameModal, setShowUsernameModal] = useState(false);
   const [showUsernameChangeModal, setShowUsernameChangeModal] = useState(false);
   const [group, setGroup] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const channelRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -833,7 +867,22 @@ const Group = () => {
       if ((!newMessage.trim() && !file) || isUploading || !group) return;
       try {
         setIsUploading(true);
-        const fileData = file ? await uploadFile(file) : null;
+        let fileData = null;
+        if (file) {
+          setUploadProgress(0);
+          const progressInterval = setInterval(() => {
+            setUploadProgress((prev) => {
+              if (prev >= 90) return prev;
+              return prev + 10;
+            });
+          }, 200);
+          fileData = await uploadFile(file);
+          clearInterval(progressInterval);
+          setUploadProgress(100);
+          // Delay a bit to show full progress
+          await new Promise((resolve) => setTimeout(resolve, 300));
+          setUploadProgress(0);
+        }
         const messageToSend = {
           text: newMessage.trim(),
           timestamp: Date.now(),
@@ -957,7 +1006,13 @@ const Group = () => {
         onSubmit={sendMessage}
         className="p-4 border-t border-gray-700 bg-[#2D3748] safe-area-bottom"
       >
-        <div className="flex items-center gap-3">
+        {/* File upload progress bar */}
+        {isUploading && file && uploadProgress > 0 && (
+          <div className="w-full bg-gray-700 h-2 rounded mt-2">
+            <div className="bg-blue-500 h-full rounded" style={{ width: `${uploadProgress}%` }}></div>
+          </div>
+        )}
+        <div className="flex items-center gap-3 mt-2">
           <label className="cursor-pointer text-gray-400 hover:text-white transition-colors">
             <FaPaperclip size={20} />
             <input
