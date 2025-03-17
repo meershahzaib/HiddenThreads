@@ -905,7 +905,7 @@ const Group = () => {
       )}
       <div className="p-4 bg-[#2D3748] border-b border-gray-700 flex items-center justify-between">
         <div className="text-white font-semibold text-lg">
-          {group ? group.name : "Chat Group"}
+          {group ? group.name : "Anonymous Thread 🕵"}
         </div>
         <button
           onClick={() => setShowUsernameChangeModal(true)}
