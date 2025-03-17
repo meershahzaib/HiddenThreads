@@ -1,17 +1,33 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { motion, AnimatePresence, useMotionValue } from "framer-motion";
-import { FaPaperclip, FaUser, FaArrowAltCircleRight, FaMagic } from "react-icons/fa";
+import { 
+  FaPaperclip, 
+  FaUser, 
+  FaArrowAltCircleRight, 
+  FaMagic, 
+  FaFileArchive, 
+  FaFilePdf 
+} from "react-icons/fa";
 import { FiCopy, FiSend, FiEdit } from "react-icons/fi";
 import { supabase } from "../supabaseClient";
 import { useSwipeable } from "react-swipeable";
+import { toast, Toaster } from "react-hot-toast";
 
 // ─── HELPER: ANONYMOUS USERNAME GENERATOR ──────────────────────────────────
-// Generates a random anonymous username using real words (an adjective + a noun)
+// Generates a random anonymous username using an adjective + noun combination,
 // ensuring the total length is between 8 and 10 characters.
 const generateAnonymousUsername = () => {
-  const adjectives = ["Calm", "Brave", "Misty", "Swift", "Quiet", "Frost", "Storm", "Arcane"
-, "Cryptic", "Enigmatic", "Shadow", "Mystic", "Phantom", "Nebulous", "Obscure", "Celestial", "Eerie", "Vesper", "Twilight", "Midnight", "Spectral", "Ghostly"];
-  const nouns = ["Fox", "Wolf", "Owl", "Hawk", "Bear", "Crow", "Lion", "Tiger", "Raven", "Serpent", "Eclipse", "Mirage", "Tempest", "Oracle", "Reaper", "Spirit", "Shade", "Wraith", "Enigma", "Cipher", "Labyrinth", "Crypt", "Obsidian"];
+  const adjectives = [
+    "Calm", "Cryptic", "Enigmatic", "Shadow", "Mystic", "Phantom", "Nebulous", "Obscure",
+    "Celestial", "Eerie", "Vesper", "Twilight", "Midnight", "Spectral", "Ghostly",
+    "Silent", "Mysterious", "Hidden", "Arcane", "Secret", "Frosty", "Stormy", "Lunar",
+    "Solar", "Cosmic"
+  ];
+  const nouns = [
+    "Raven", "Serpent", "Eclipse", "Mirage", "Tempest", "Oracle", "Reaper", "Spirit",
+    "Shade", "Wraith", "Enigma", "Cipher", "Labyrinth", "Crypt", "Obsidian", "Falcon",
+    "Panther", "Viper", "Cobra", "Mystery", "Phantom", "Zephyr", "Nebula", "Comet", "Galaxy"
+  ];
   for (let i = 0; i < 10; i++) {
     const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
     const noun = nouns[Math.floor(Math.random() * nouns.length)];
@@ -23,6 +39,16 @@ const generateAnonymousUsername = () => {
   // Fallback: if no valid combination is found, trim a longer one.
   const fallback = `${adjectives[0]}${nouns[0]}`;
   return fallback.substring(0, 10).padEnd(8, "0");
+};
+
+// ─── HELPER: UNIQUE USERNAME GENERATOR ─────────────────────────────────────
+// Generates a new username ensuring it is not identical to the current value.
+const generateUniqueAnonymousUsername = (current) => {
+  let newName = generateAnonymousUsername();
+  while (newName === current) {
+    newName = generateAnonymousUsername();
+  }
+  return newName;
 };
 
 // ─── REPLY PREVIEW COMPONENT ─────────────────────────────────────────────
@@ -100,14 +126,17 @@ const UsernameModal = ({ onUsernameSet }) => {
       if (fetchError) throw fetchError;
       if (data && data.length > 0) {
         setError("Username is already taken. Please choose another.");
+        toast.error("Username is already taken. Please choose another.");
         return;
       }
       localStorage.setItem("chatUsername", usernameToCheck);
       await supabase.rpc("set_current_user", { username: usernameToCheck });
+      toast.success("Username set successfully.");
       onUsernameSet(usernameToCheck);
     } catch (err) {
       console.error("Error checking username:", err);
       setError("An error occurred while checking username availability.");
+      toast.error("An error occurred while checking username availability.");
     }
   };
 
@@ -142,7 +171,9 @@ const UsernameModal = ({ onUsernameSet }) => {
           <div className="flex justify-center mt-2">
             <button
               type="button"
-              onClick={() => setTempUsername(generateAnonymousUsername())}
+              onClick={() =>
+                setTempUsername(generateUniqueAnonymousUsername(tempUsername))
+              }
               className="flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-green-400 to-blue-500 rounded hover:from-green-500 hover:to-blue-600 transition-colors"
             >
               <FaMagic size={18} />
@@ -173,9 +204,9 @@ const UsernameChangeModal = ({ currentUsername, onUsernameChange, onClose }) => 
     e.preventDefault();
     const usernameToCheck = newUsername.trim();
     if (!usernameToCheck) return;
-    // Prevent changing to same username
     if (usernameToCheck === currentUsername) {
       setError("New username must be different.");
+      toast.error("New username must be different.");
       return;
     }
     try {
@@ -187,15 +218,18 @@ const UsernameChangeModal = ({ currentUsername, onUsernameChange, onClose }) => 
       if (fetchError) throw fetchError;
       if (data && data.length > 0) {
         setError("Username is already taken. Please choose another.");
+        toast.error("Username is already taken. Please choose another.");
         return;
       }
       localStorage.setItem("chatUsername", usernameToCheck);
       await supabase.rpc("set_current_user", { username: usernameToCheck });
+      toast.success("Username changed successfully.");
       onUsernameChange(usernameToCheck);
       onClose();
     } catch (err) {
       console.error("Error changing username:", err);
       setError("An error occurred while changing username.");
+      toast.error("An error occurred while changing username.");
     }
   };
 
@@ -224,7 +258,9 @@ const UsernameChangeModal = ({ currentUsername, onUsernameChange, onClose }) => 
           <div className="flex justify-center mt-2">
             <button
               type="button"
-              onClick={() => setNewUsername(generateAnonymousUsername())}
+              onClick={() =>
+                setNewUsername(generateUniqueAnonymousUsername(newUsername))
+              }
               className="flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-green-400 to-blue-500 rounded hover:from-green-500 hover:to-blue-600 transition-colors"
             >
               <FaMagic size={18} />
@@ -255,8 +291,7 @@ const UsernameChangeModal = ({ currentUsername, onUsernameChange, onClose }) => 
 
 // ─── PINNED PREWRITTEN MESSAGE COMPONENT ───────────────────────────────────
 const PinnedMessage = () => {
-  const guidelines =
-    "📌 Welcome Friends , Enjoy The Space 📌";
+  const guidelines = "📌 Welcome Friends , Enjoy The Space 📌";
   return (
     <div className="my-4 px-4 py-3 bg-gradient-to-r from-indigo-600 to-blue-500 text-white text-center rounded-lg shadow-md">
       <p className="text-sm font-medium">{guidelines}</p>
@@ -276,12 +311,10 @@ const SafeMessageComponent = ({ message, onReply, allMessages }) => {
   const username = localStorage.getItem("chatUsername");
   const hasRead = (message.read_by || []).includes(username);
 
-  // Update reaction state on realtime updates
   useEffect(() => {
     setReaction(message.reactions ? message.reactions[username] : null);
   }, [message.reactions, username]);
 
-  // Compute aggregated reactions
   const aggregatedReactions = useMemo(() => {
     const agg = {};
     const reactionsObj = message.reactions || {};
@@ -292,9 +325,7 @@ const SafeMessageComponent = ({ message, onReply, allMessages }) => {
     return agg;
   }, [message.reactions]);
 
-  // Use Framer Motion’s motion value for swipe animation
   const swipeX = useMotionValue(0);
-
   const swipeConfig = useMemo(
     () => ({
       onSwiping: (e, messageId) => {
@@ -324,7 +355,6 @@ const SafeMessageComponent = ({ message, onReply, allMessages }) => {
     preventDefaultTouchmoveEvent: true,
   });
 
-  // Long press detection for reaction popup
   const startLongPress = (e) => {
     e.persist && e.persist();
     longPressTimer.current = setTimeout(() => {
@@ -339,7 +369,6 @@ const SafeMessageComponent = ({ message, onReply, allMessages }) => {
     }
   };
 
-  // Combined event handlers for long press and swipe
   const handleMouseDown = (e) => {
     startLongPress(e);
     handlers.onMouseDown && handlers.onMouseDown(e);
@@ -365,7 +394,6 @@ const SafeMessageComponent = ({ message, onReply, allMessages }) => {
     handlers.onTouchCancel && handlers.onTouchCancel(e);
   };
 
-  // Ensure popup stays within viewport when open
   useEffect(() => {
     if (showReactionPopup && messageRef.current) {
       const rect = messageRef.current.getBoundingClientRect();
@@ -389,10 +417,8 @@ const SafeMessageComponent = ({ message, onReply, allMessages }) => {
     }
   }, [showReactionPopup, message.sender, username]);
 
-  // Prevent text copying on long press
   const disableCopyStyle = { userSelect: "none" };
 
-  // Mark message as read when visible
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -424,7 +450,6 @@ const SafeMessageComponent = ({ message, onReply, allMessages }) => {
     });
   }, []);
 
-  // Reaction option handler – now copy the message text when "Copy" is clicked.
   const handleCopy = (e) => {
     e.stopPropagation();
     navigator.clipboard.writeText(message.text)
@@ -468,7 +493,6 @@ const SafeMessageComponent = ({ message, onReply, allMessages }) => {
     }
   };
 
-  // For reply preview inside the message bubble: show the replied message text.
   const replyPreview =
     message.replyTo && allMessages
       ? allMessages.find((m) => m.id === message.replyTo)?.text || "file"
@@ -534,10 +558,9 @@ const SafeMessageComponent = ({ message, onReply, allMessages }) => {
                 {replyPreview}
               </div>
             )}
-            {/* Added break-words and break-all to ensure very long text wraps correctly */}
             <div className="break-words break-all">{message.text}</div>
             {message.file?.url && (
-              <div className="relative mt-1 max-w-xs">
+              <div className="relative mt-1 w-full max-w-xs">
                 {message.file.type.startsWith("image/") ? (
                   <a
                     href={message.file.url}
@@ -548,8 +571,7 @@ const SafeMessageComponent = ({ message, onReply, allMessages }) => {
                     <img
                       src={message.file.url}
                       alt="Shared content"
-                      className="w-full h-auto rounded-sm border border-white/20"
-                      style={{ maxHeight: "120px" }}
+                      className="w-full max-w-[80px] object-cover rounded-lg border border-white/20"
                     />
                   </a>
                 ) : (
@@ -558,6 +580,7 @@ const SafeMessageComponent = ({ message, onReply, allMessages }) => {
                     target="_blank"
                     rel="noopener noreferrer"
                     className="block mt-2 text-blue-400 underline"
+                    download={message.file.type.includes("zip") ? message.file.name : undefined}
                   >
                     {message.file.name}
                   </a>
@@ -604,7 +627,6 @@ const SafeMessageComponent = ({ message, onReply, allMessages }) => {
                 )}
               </div>
             </div>
-            {/* Aggregated Reaction Badges */}
             {Object.keys(aggregatedReactions).length > 0 && (
               <div
                 className="absolute flex gap-1"
@@ -625,7 +647,6 @@ const SafeMessageComponent = ({ message, onReply, allMessages }) => {
                 ))}
               </div>
             )}
-            {/* Reaction Popup */}
             <AnimatePresence>
               {showReactionPopup && (
                 <motion.div
@@ -642,7 +663,6 @@ const SafeMessageComponent = ({ message, onReply, allMessages }) => {
                     ...popupStyle,
                   }}
                 >
-                  {/* Emoji Row */}
                   <div className="emoji-row flex gap-2 mb-2 justify-center">
                     {["👍", "❤️", "😂", "😮", "😢", "👏"].map((emoji, index) => (
                       <div
@@ -657,9 +677,7 @@ const SafeMessageComponent = ({ message, onReply, allMessages }) => {
                       ➕
                     </div>
                   </div>
-                  {/* Separator */}
                   <hr className="border-gray-600 my-1" />
-                  {/* Options Row (single line: only Copy) */}
                   <div className="options-row flex gap-6 justify-center mt-1">
                     <div
                       onClick={handleCopy}
@@ -694,6 +712,7 @@ const Group = () => {
   const [showUsernameChangeModal, setShowUsernameChangeModal] = useState(false);
   const [group, setGroup] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadMessage, setUploadMessage] = useState("");
 
   const channelRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -718,7 +737,6 @@ const Group = () => {
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
-  // Fetch messages from Supabase
   const fetchMessages = async () => {
     if (!group) return;
     setIsLoading(true);
@@ -731,6 +749,7 @@ const Group = () => {
       setMessages(data || []);
     } catch (error) {
       console.error("Error fetching messages:", error);
+      toast.error("Error fetching messages.");
     } finally {
       setIsLoading(false);
     }
@@ -781,7 +800,6 @@ const Group = () => {
     };
   }, [group]);
 
-  // Modified realtime update handler: merge incoming updates while preserving non-empty text if incoming text is empty.
   const handleRealtimeUpdate = (payload) => {
     switch (payload.eventType) {
       case "INSERT":
@@ -826,25 +844,33 @@ const Group = () => {
   const handleFileChange = useCallback((e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      alert("File size must be 5MB or less");
-      return;
-    }
+    // Determine if file is ZIP by MIME or extension.
+    const isZip = file.type === "application/zip" ||
+                  file.type === "application/x-zip-compressed" ||
+                  file.name.toLowerCase().endsWith(".zip");
     const allowedTypes = [
       "image/jpeg",
       "image/png",
       "image/gif",
       "application/pdf",
+      "application/zip",
+      "application/x-zip-compressed"
     ];
-    if (!allowedTypes.includes(file.type)) {
-      alert("Only images (JPEG, PNG, GIF) and PDF files are allowed");
+    if (!isZip && file.size > 5 * 1024 * 1024) {
+      toast.error("File size must be 5MB or less");
+      return;
+    }
+    if (!allowedTypes.includes(file.type) && !isZip) {
+      toast.error("Only images (JPEG, PNG, GIF), PDF, and ZIP files are allowed");
       return;
     }
     setFile(file);
+    // For image files, create an object URL preview.
     if (file.type.startsWith("image/")) {
       setFilePreview(URL.createObjectURL(file));
     } else {
-      setFilePreview(null);
+      // For non-image files, show the file name as preview.
+      setFilePreview(file.name);
     }
   }, []);
 
@@ -864,6 +890,7 @@ const Group = () => {
         return { url: publicUrl, type: file.type, name: file.name };
       } catch (error) {
         console.error("Error uploading file:", error);
+        toast.error("Error uploading file.");
         throw error;
       }
     },
@@ -879,18 +906,17 @@ const Group = () => {
         let fileData = null;
         if (file) {
           setUploadProgress(0);
+          setUploadMessage("Uploading file...");
           const progressInterval = setInterval(() => {
-            setUploadProgress((prev) => {
-              if (prev >= 90) return prev;
-              return prev + 10;
-            });
+            setUploadProgress((prev) => (prev >= 90 ? prev : prev + 10));
           }, 200);
           fileData = await uploadFile(file);
           clearInterval(progressInterval);
           setUploadProgress(100);
-          // Delay a bit to show full progress
+          setUploadMessage("File uploaded successfully.");
           await new Promise((resolve) => setTimeout(resolve, 300));
           setUploadProgress(0);
+          setUploadMessage("");
         }
         const messageToSend = {
           text: newMessage.trim(),
@@ -915,8 +941,8 @@ const Group = () => {
         setReplyTo(null);
         setShouldAutoScroll(true);
       } catch (error) {
-        alert("Error sending message. Please try again.");
-        console.error("Error:", error);
+        console.error("Error sending message:", error);
+        toast.error("Error sending message. Please try again.");
       } finally {
         setIsUploading(false);
       }
@@ -1011,61 +1037,73 @@ const Group = () => {
         )}
       </AnimatePresence>
 
+      {/* Updated Bottom Form */}
       <form
         onSubmit={sendMessage}
         className="p-4 border-t border-gray-700 bg-[#2D3748] safe-area-bottom"
       >
-        {/* File upload progress bar */}
-        {isUploading && file && uploadProgress > 0 && (
-          <div className="w-full bg-gray-700 h-2 rounded mt-2">
-            <div className="bg-blue-500 h-full rounded" style={{ width: `${uploadProgress}%` }}></div>
+        {isUploading && file && (
+          <div className="mb-2">
+            <div className="w-full bg-gray-700 h-2 rounded">
+              <div className="bg-blue-500 h-full rounded" style={{ width: `${uploadProgress}%` }}></div>
+            </div>
+            {uploadMessage && (
+              <div className="text-white text-xs mt-1 text-center">
+                {uploadMessage} {uploadProgress > 0 ? `(${uploadProgress}%)` : ""}
+              </div>
+            )}
           </div>
         )}
-        <div className="flex items-center gap-3 mt-2">
-          <label className="cursor-pointer text-gray-400 hover:text-white transition-colors">
-            <FaPaperclip size={20} />
+        {file && (
+          <div className="mb-2 flex items-center justify-center">
+            {file.type.startsWith("image/") ? (
+              <img
+                src={filePreview}
+                alt="Preview"
+                className="w-16 h-16 object-cover rounded-lg border border-gray-600/20"
+              />
+            ) : (
+              <div className="flex items-center gap-2 p-2 bg-gray-800 rounded">
+                {file.type.includes("pdf") ? (
+                  <FaFilePdf size={20} className="text-red-500" />
+                ) : file.type.includes("zip") ? (
+                  <FaFileArchive size={20} className="text-yellow-500" />
+                ) : null}
+                <span className="text-white text-xs truncate">{filePreview}</span>
+              </div>
+            )}
+          </div>
+        )}
+        <div className="flex items-center space-x-2">
+          <label className="cursor-pointer p-2 rounded-full bg-gray-700 hover:bg-gray-600 transition-colors">
+            <FaPaperclip size={20} className="text-white" />
             <input
               type="file"
-              accept="image/*, application/pdf"
+              accept="image/*, application/pdf, application/zip, application/x-zip-compressed"
               className="hidden"
               onChange={handleFileChange}
               disabled={isUploading}
             />
           </label>
-          {filePreview && (
-            <div className="relative">
-              <img
-                src={filePreview}
-                alt="Preview"
-                className="w-8 h-8 object-cover rounded-lg border border-gray-600/20"
-              />
-            </div>
-          )}
           <input
             type="text"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             placeholder="Type your message..."
-            className="flex-grow px-4 py-2 rounded-xl border border-gray-700 focus:outline-none focus:border-blue-500 bg-[#1E293B] text-white text-sm transition-colors"
-            style={{
-              fontSize: "16px",
-              WebkitUserSelect: "text",
-              userSelect: "text",
-            }}
+            className="flex-grow px-4 py-2 rounded-xl border border-gray-700 bg-[#1E293B] text-white focus:outline-none focus:border-blue-500"
+            style={{ fontSize: "16px" }}
             disabled={isUploading}
           />
           <button
             type="submit"
-            className={`${
-              isUploading ? "bg-gray-600" : "bg-blue-500 hover:bg-blue-600"
-            } text-white p-2 rounded-xl transition-colors`}
+            className={`p-2 rounded-full bg-blue-500 hover:bg-blue-600 transition-colors ${isUploading && "bg-gray-600"}`}
             disabled={isUploading}
           >
-            <FiSend size={20} />
+            <FiSend size={20} className="text-white" />
           </button>
         </div>
       </form>
-
+      <Toaster />
       <style>{`
         html, body {
           overscroll-behavior: none;
@@ -1124,35 +1162,54 @@ const Group = () => {
 
 // ─── HELPER: JOIN GROUP FUNCTION ──────────────────────────────────────────
 const joinGroup = async (groupName, groupPassword) => {
-  let { data: groupData, error } = await supabase
-    .from("groups")
-    .select("*")
-    .eq("name", groupName)
-    .single();
-  if (!groupData) {
-    throw new Error("Group does not exist");
-  }
-  // Removed group password check
-  const groupId = groupData.id;
-  // Removed group user limit check
-  const username = localStorage.getItem("chatUsername");
-  const { data: existingMembership } = await supabase
-    .from("group_memberships")
-    .select("*")
-    .eq("group_id", groupId)
-    .eq("user_name", username)
-    .maybeSingle();
-  if (existingMembership) {
+  try {
+    let { data: groupData, error } = await supabase
+      .from("groups")
+      .select("*")
+      .eq("name", groupName)
+      .single();
+    if (!groupData) {
+      throw new Error("Group does not exist");
+    }
+    const groupId = groupData.id;
+    const username = localStorage.getItem("chatUsername");
+    const { data: existingMembership } = await supabase
+      .from("group_memberships")
+      .select("*")
+      .eq("group_id", groupId)
+      .eq("user_name", username)
+      .maybeSingle();
+    if (existingMembership) {
+      localStorage.setItem("private_group_joined", "true");
+      return;
+    }
+    const { error: joinError } = await supabase
+      .from("group_memberships")
+      .insert([{ group_id: groupId, user_name: username }]);
+    if (joinError) {
+      // If a conflict (409) error occurs, silently mark as joined.
+      if (joinError.status === 409) {
+        toast("Already joined group", { icon: "⚠️" });
+        localStorage.setItem("private_group_joined", "true");
+        return;
+      }
+      throw new Error("Error joining group");
+    }
     localStorage.setItem("private_group_joined", "true");
-    return;
+  } catch (err) {
+    toast.error(err.message);
+    throw err;
   }
-  const { error: joinError } = await supabase
-    .from("group_memberships")
-    .insert([{ group_id: groupId, user_name: username }]);
-  if (joinError) {
-    throw new Error("Error joining group"); 
-  }
-  localStorage.setItem("private_group_joined", "true");
 };
 
-export default Group;
+// ─── WRAPPER COMPONENT ─────────────────────────────────────────────────────
+const ChatApp = () => {
+  return (
+    <>
+      <Group />
+      <Toaster />
+    </>
+  );
+};
+
+export default ChatApp;
