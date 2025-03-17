@@ -86,7 +86,7 @@ function Home() {
                         className="flex justify-center space-x-6"
                     >
                         <Link
-                            to="/chat"
+                            to="/groupchat"
                             className="relative group inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl hover:rounded-lg transition-all duration-300 shadow-2xl hover:shadow-blue-500/30"
                             onMouseEnter={() => setIsHovered(true)}
                             onMouseLeave={() => setIsHovered(false)}

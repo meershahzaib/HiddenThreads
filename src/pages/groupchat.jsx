@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { motion, AnimatePresence, useMotionValue } from "framer-motion";
 import { FaPaperclip, FaUser, FaArrowAltCircleRight } from "react-icons/fa";
-import { FiCopy } from "react-icons/fi";
+import { FiCopy, FiSend, FiEdit } from "react-icons/fi";
 import { supabase } from "../supabaseClient";
 import { useSwipeable } from "react-swipeable";
 
@@ -62,8 +62,8 @@ const ReplyPreview = ({ originalMessage, onCancel }) => {
   );
 };
 
-// ─── USERNAME MODAL ─────────────────────────────────────────────────────────
-const UsernameModal = () => {
+// ─── USERNAME MODAL (Initial) ─────────────────────────────────────────────
+const UsernameModal = ({ onUsernameSet }) => {
   const [tempUsername, setTempUsername] = useState("");
   const [error, setError] = useState("");
 
@@ -84,7 +84,7 @@ const UsernameModal = () => {
       }
       localStorage.setItem("chatUsername", usernameToCheck);
       await supabase.rpc("set_current_user", { username: usernameToCheck });
-      window.location.reload();
+      onUsernameSet(usernameToCheck);
     } catch (err) {
       console.error("Error checking username:", err);
       setError("An error occurred while checking username availability.");
@@ -92,21 +92,21 @@ const UsernameModal = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
       <motion.div
-        initial={{ opacity: 0, y: 8 }}
+        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -8 }}
-        transition={{ duration: 0.24, ease: [0.33, 1, 0.68, 1] }}
-        className="bg-[#0E1423] rounded-xl shadow-lg p-6 max-w-xs w-full mx-4 border border-gray-700"
+        exit={{ opacity: 0, y: -20 }}
+        transition={{ duration: 0.3, ease: "easeOut" }}
+        className="bg-gray-900 rounded-xl shadow-2xl p-10 max-w-sm w-full mx-4 border border-gray-700"
       >
         <div className="flex flex-col items-center space-y-4 mb-6">
-          <div className="p-2 bg-gradient-to-br from-[#db7ad720] to-[#8a97fb20] rounded-lg border border-gray-600">
-            <FaUser size={20} className="text-[#8a97fb]" />
+          <div className="p-3 bg-gradient-to-br from-purple-600 to-blue-500 rounded-full border border-gray-600">
+            <FaUser size={28} className="text-white" />
           </div>
-          <h2 className="text-[18px] font-semibold bg-gradient-to-r from-[#db7ad7] to-[#8a97fb] bg-clip-text text-transparent tracking-tight">
-            Welcome to HiddenThreads
-          </h2>
+          <p className="text-gray-400 text-sm">
+            Choose a unique username 🔥
+          </p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="relative">
@@ -114,15 +114,15 @@ const UsernameModal = () => {
               type="text"
               value={tempUsername}
               onChange={(e) => setTempUsername(e.target.value)}
-              placeholder="Username"
-              className="w-full px-3 py-2 rounded bg-gray-800 text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 border border-gray-700 transition-all duration-200"
+              placeholder="Enter your username"
+              className="w-full px-4 py-2 rounded bg-gray-800 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-700 transition-all duration-200"
             />
           </div>
           {error && <div className="text-red-400 text-sm mt-2">{error}</div>}
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            className="w-full bg-gradient-to-r from-blue-500 to-purple-500 text-white font-medium text-sm py-2 rounded transition-all flex items-center justify-center gap-2"
+            className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold text-base py-2 rounded shadow-md transition-all flex items-center justify-center gap-2"
           >
             <FaUser className="text-xs" />
             <span>Continue</span>
@@ -133,59 +133,78 @@ const UsernameModal = () => {
   );
 };
 
-// ─── GROUP MODAL (Password-Only) ───────────────────────────────────────────
-const GroupModal = ({ onJoin }) => {
-  const [groupPassword, setGroupPassword] = useState("");
+// ─── USERNAME CHANGE MODAL ─────────────────────────────────────────────
+const UsernameChangeModal = ({ currentUsername, onUsernameChange, onClose }) => {
+  const [newUsername, setNewUsername] = useState("");
   const [error, setError] = useState("");
-  const handleSubmit = async (e) => {
+
+  const handleUsernameChange = async (e) => {
     e.preventDefault();
-    const password = groupPassword.trim();
-    if (!password) {
-      setError("Please provide the group password.");
+    const usernameToCheck = newUsername.trim();
+    if (!usernameToCheck) return;
+    // Prevent changing to same username
+    if (usernameToCheck === currentUsername) {
+      setError("New username must be different.");
       return;
     }
     try {
-      await onJoin(password);
+      const { data, error: fetchError } = await supabase
+        .from("private_messages")
+        .select("sender")
+        .eq("sender", usernameToCheck)
+        .limit(1);
+      if (fetchError) throw fetchError;
+      if (data && data.length > 0) {
+        setError("Username is already taken. Please choose another.");
+        return;
+      }
+      localStorage.setItem("chatUsername", usernameToCheck);
+      await supabase.rpc("set_current_user", { username: usernameToCheck });
+      onUsernameChange(usernameToCheck);
+      onClose();
     } catch (err) {
-      setError(err.message || "Error joining group");
+      console.error("Error changing username:", err);
+      setError("An error occurred while changing username.");
     }
   };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
       <motion.div
-        initial={{ opacity: 0, y: 8 }}
+        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -8 }}
-        transition={{ duration: 0.24, ease: [0.33, 1, 0.68, 1] }}
-        className="bg-[#0E1423] rounded-xl shadow-lg p-6 max-w-xs w-full mx-4 border border-gray-700"
+        exit={{ opacity: 0, y: -20 }}
+        transition={{ duration: 0.3, ease: "easeOut" }}
+        className="bg-gray-900 rounded-xl shadow-2xl p-8 max-w-sm w-full mx-4 border border-gray-700"
       >
-        <div className="flex flex-col items-center space-y-4 mb-6">
-          <div className="p-2 bg-gradient-to-br from-[#db7ad720] to-[#8a97fb20] rounded-lg border border-gray-600">
-            <FaUser size={20} className="text-[#8a97fb]" />
-          </div>
-          <h2 className="text-[18px] font-semibold bg-gradient-to-r from-[#db7ad7] to-[#8a97fb] bg-clip-text text-transparent tracking-tight">
-            Enter Group Password
-          </h2>
+        <div className="flex flex-col items-center space-y-2 mb-4">
+          <h2 className="text-xl font-bold text-white">Change Username</h2>
+          <p className="text-gray-400 text-sm">Enter a new unique username.</p>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="relative">
-            <input
-              type="password"
-              value={groupPassword}
-              onChange={(e) => setGroupPassword(e.target.value)}
-              placeholder="Group Password"
-              className="w-full px-3 py-2 rounded bg-gray-800 text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-500 border border-gray-700 transition-all duration-200"
-            />
+        <form onSubmit={handleUsernameChange} className="space-y-4">
+          <input
+            type="text"
+            value={newUsername}
+            onChange={(e) => setNewUsername(e.target.value)}
+            placeholder="New username"
+            className="w-full px-4 py-2 rounded bg-gray-800 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-700 transition-all duration-200"
+          />
+          {error && <div className="text-red-400 text-sm">{error}</div>}
+          <div className="flex justify-center gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 rounded bg-gray-700 text-white text-sm"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 rounded bg-gradient-to-r from-blue-500 to-purple-600 text-white text-sm font-semibold"
+            >
+              Change
+            </button>
           </div>
-          {error && <div className="text-red-400 text-sm mt-2">{error}</div>}
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className="w-full bg-gradient-to-r from-blue-500 to-purple-500 text-white font-medium text-sm py-2 rounded transition-all flex items-center justify-center gap-2"
-          >
-            <FaUser className="text-xs" />
-            <span>Join Group</span>
-          </motion.button>
         </form>
       </motion.div>
     </div>
@@ -473,7 +492,8 @@ const SafeMessageComponent = ({ message, onReply, allMessages }) => {
                 {replyPreview}
               </div>
             )}
-            <div>{message.text}</div>
+            {/* Added break-words and break-all to ensure very long text wraps correctly */}
+            <div className="break-words break-all">{message.text}</div>
             {message.file?.url && (
               <div className="relative mt-1 max-w-xs">
                 {message.file.type.startsWith("image/") ? (
@@ -629,8 +649,8 @@ const Group = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [lastSentMessageId, setLastSentMessageId] = useState(null);
   const [showUsernameModal, setShowUsernameModal] = useState(false);
+  const [showUsernameChangeModal, setShowUsernameChangeModal] = useState(false);
   const [group, setGroup] = useState(null);
-  const [showGroupModal, setShowGroupModal] = useState(false);
 
   const channelRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -677,23 +697,17 @@ const Group = () => {
     const storedUsername = localStorage.getItem("chatUsername");
     if (storedUsername) {
       setUsername(storedUsername);
-      if (localStorage.getItem("private_group_joined") === "true") {
-        supabase
-          .from("groups")
-          .select("*")
-          .eq("name", "Private Group")
-          .single()
-          .then(({ data, error }) => {
-            if (data) {
-              setGroup({ id: data.id, name: data.name });
-              setShowGroupModal(false);
-            } else {
-              setShowGroupModal(true);
-            }
-          });
-      } else {
-        setShowGroupModal(true);
-      }
+      joinGroup("Anonymous Thread 🕵", "");
+      supabase
+        .from("groups")
+        .select("*")
+        .eq("name", "Anonymous Thread 🕵")
+        .single()
+        .then(({ data, error }) => {
+          if (data) {
+            setGroup({ id: data.id, name: data.name });
+          }
+        });
     } else {
       setShowUsernameModal(true);
     }
@@ -724,17 +738,36 @@ const Group = () => {
     };
   }, [group]);
 
+  // Modified realtime update handler: merge incoming updates while preserving non-empty text if incoming text is empty.
   const handleRealtimeUpdate = (payload) => {
     switch (payload.eventType) {
       case "INSERT":
         setMessages((prev) => {
-          const isDuplicate = prev.some((msg) => msg.id === payload.new.id);
-          return isDuplicate ? prev : [...prev, payload.new];
+          const existing = prev.find((msg) => msg.id === payload.new.id);
+          if (existing) {
+            const updatedText =
+              payload.new.text && payload.new.text.trim() !== ""
+                ? payload.new.text
+                : existing.text;
+            return prev.map((msg) =>
+              msg.id === payload.new.id ? { ...msg, ...payload.new, text: updatedText } : msg
+            );
+          }
+          return [...prev, payload.new];
         });
         break;
       case "UPDATE":
         setMessages((prev) =>
-          prev.map((msg) => (msg.id === payload.new.id ? payload.new : msg))
+          prev.map((msg) => {
+            if (msg.id === payload.new.id) {
+              const updatedText =
+                payload.new.text && payload.new.text.trim() !== ""
+                  ? payload.new.text
+                  : msg.text;
+              return { ...msg, ...payload.new, text: updatedText };
+            }
+            return msg;
+          })
         );
         break;
       case "DELETE":
@@ -842,24 +875,45 @@ const Group = () => {
         overscrollBehavior: "none",
       }}
     >
-      {showUsernameModal && <UsernameModal />}
-      {!showUsernameModal && showGroupModal && (
-        <GroupModal
-          onJoin={async (groupPassword) => {
-            if (!username) return;
-            await joinGroup("Private Group", groupPassword);
-            const { data: grp } = await supabase
+      {showUsernameModal && (
+        <UsernameModal
+          onUsernameSet={(username) => {
+            setUsername(username);
+            setShowUsernameModal(false);
+            joinGroup("Anonymous Thread 🕵", "");
+            supabase
               .from("groups")
               .select("*")
-              .eq("name", "Private Group")
-              .single();
-            setGroup({ id: grp.id, name: grp.name });
-            setShowGroupModal(false);
+              .eq("name", "Anonymous Thread 🕵")
+              .single()
+              .then(({ data, error }) => {
+                if (data) {
+                  setGroup({ id: data.id, name: data.name });
+                }
+              });
           }}
         />
       )}
-      <div className="p-4 bg-[#2D3748] text-white text-center font-semibold text-lg border-b border-gray-700">
-        {group ? group.name : "Chat Group"}
+      {showUsernameChangeModal && (
+        <UsernameChangeModal
+          currentUsername={username}
+          onUsernameChange={(newUsername) => {
+            setUsername(newUsername);
+          }}
+          onClose={() => setShowUsernameChangeModal(false)}
+        />
+      )}
+      <div className="p-4 bg-[#2D3748] border-b border-gray-700 flex items-center justify-between">
+        <div className="text-white font-semibold text-lg">
+          {group ? group.name : "Chat Group"}
+        </div>
+        <button
+          onClick={() => setShowUsernameChangeModal(true)}
+          className="text-gray-400 hover:text-white transition-colors"
+          title="Change Username"
+        >
+          <FiEdit size={20} />
+        </button>
       </div>
 
       <div
@@ -943,7 +997,7 @@ const Group = () => {
             } text-white p-2 rounded-xl transition-colors`}
             disabled={isUploading}
           >
-            <FaArrowAltCircleRight size={20} />
+            <FiSend size={20} />
           </button>
         </div>
       </form>
@@ -1014,20 +1068,9 @@ const joinGroup = async (groupName, groupPassword) => {
   if (!groupData) {
     throw new Error("Group does not exist");
   }
-  if (groupData.password !== groupPassword) {
-    throw new Error("Incorrect group password");
-  }
+  // Removed group password check
   const groupId = groupData.id;
-  const { error: countError, count } = await supabase
-    .from("group_memberships")
-    .select("*", { count: "exact", head: true })
-    .eq("group_id", groupId);
-  if (countError) {
-    throw new Error("Error checking group membership");
-  }
-  if (count >= 20) {
-    throw new Error("This group has reached the maximum number of users.");
-  }
+  // Removed group user limit check
   const username = localStorage.getItem("chatUsername");
   const { data: existingMembership } = await supabase
     .from("group_memberships")

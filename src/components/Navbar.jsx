@@ -63,9 +63,9 @@ function Navbar() {
 
                     {/* Desktop Navigation */}
                     <div className="hidden md:flex items-center space-x-4">
-                        <NavLink href="/groupchat">Join Group</NavLink>
+                        {/* <NavLink href="/groupchat">Join Group</NavLink> */}
                         <div className="relative">
-                            <button
+                            {/* <button
                                 className="px-4 py-2 text-gray-300 hover:text-white flex items-center space-x-1"
                                 onMouseEnter={() => setShowResources(true)}
                                 onMouseLeave={() => setShowResources(false)}
@@ -73,7 +73,7 @@ function Navbar() {
                             >
                                 <span>Resources</span>
                                 <ChevronDown className="w-4 h-4" />
-                            </button>
+                            </button> */}
 
                             <AnimatePresence>
                                 {showResources && (
@@ -94,15 +94,15 @@ function Navbar() {
                                 )}
                             </AnimatePresence>
                         </div>
-                        <NavLink href="/pricing">Pricing</NavLink>
+                        {/* <NavLink href="/pricing">Pricing</NavLink> */}
                         <NavLink href="/about">About</NavLink>
-                        <NavLink href="/video-voice">Video/Voice Chat</NavLink>
-                        <Link
+                        <NavLink href="/video-voice">Video Chat</NavLink>
+                        {/* <Link
                             to="/signup"
                             className="ml-4 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-colors duration-200"
                         >
                             Get Started
-                        </Link>
+                        </Link> */}
                     </div>
 
                     {/* Mobile menu button */}
@@ -127,13 +127,9 @@ function Navbar() {
                             className="md:hidden"
                         >
                             <div className="px-2 pt-2 pb-3 space-y-1">
-                                <Link to="/groupchat" className="block px-3 py-2 text-gray-300 hover:text-white">Join Group</Link>
-                                <Link to="/resources" className="block px-3 py-2 text-gray-300 hover:text-white">Resources</Link>
-                                <Link to="/pricing" className="block px-3 py-2 text-gray-300 hover:text-white">Pricing</Link>
                                 <Link to="/about" className="block px-3 py-2 text-gray-300 hover:text-white">About</Link>
-                                <Link to="/video-voice" className="block px-3 py-2 text-gray-300 hover:text-white">Video/Voice Chat</Link>
-
-                                <Link to="/signup" className="block px-3 py-2 text-blue-500 hover:text-blue-400">Get Started</Link>
+                                <Link to="/video-voice" className="block px-3 py-2 text-gray-300 hover:text-white">Video Chat</Link>
+                                {/* <Link to="/signup" className="block px-3 py-2 text-blue-500 hover:text-blue-400">Get Started</Link> */}
                             </div>
                         </motion.div>
                     )}
